@@ -10,7 +10,7 @@ const Login = () => {
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
-    // Route guard: Redirects to /home if user or token already exists
+    // Route guard
     useEffect(() => {
         const user = localStorage.getItem('user')
         const token = localStorage.getItem('token')
@@ -28,10 +28,9 @@ const Login = () => {
         try {
             const response = await api.post('/login', { email, password })
             if (response.data.success) {
-                // Store user data
+                
                 localStorage.setItem('user', JSON.stringify(response.data.user))
                 
-                // Store token for api.js interceptor authorization
                 if (response.data.token) {
                     localStorage.setItem('token', response.data.token)
                 }
