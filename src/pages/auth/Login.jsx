@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 import logoIcon from '../../assets/gams-favicon.svg'
@@ -10,6 +10,16 @@ const Login = () => {
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
+    // Route guard: Redirects to /home if user or token already exists
+    useEffect(() => {
+        const user = localStorage.getItem('user')
+        const token = localStorage.getItem('token')
+        
+        if (user || token) {
+            navigate('/home', { replace: true }) 
+        }
+    }, [navigate])
+
     const handleLogin = async (e) => {
         e.preventDefault()
         setError('')
@@ -18,8 +28,15 @@ const Login = () => {
         try {
             const response = await api.post('/login', { email, password })
             if (response.data.success) {
+                // Store user data
                 localStorage.setItem('user', JSON.stringify(response.data.user))
-                navigate('/home') 
+                
+                // Store token for api.js interceptor authorization
+                if (response.data.token) {
+                    localStorage.setItem('token', response.data.token)
+                }
+                
+                navigate('/home', { replace: true }) 
             } else {
                 setError("Login failed: Server response invalid")
             }
@@ -38,7 +55,7 @@ const Login = () => {
                 <div className="text-center flex flex-col items-center space-y-4 min-w-0">
                     <div className="w-32 h-32 md:w-32 md:h-32 flex items-center justify-center">
                         <img 
-                            src= {logoIcon}
+                            src={logoIcon}
                             alt="GAMS Logo" 
                             className="w-full h-full object-contain drop-shadow-md"
                         />
