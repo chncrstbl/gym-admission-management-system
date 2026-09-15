@@ -99,7 +99,7 @@ export const addMember = async (req, res) => {
 
         const methodToSave = paymentMethod || 'Cash';
         await db.query(
-            'INSERT INTO payments (member_id, amount, payment_method, payment_date, status, ref_no) VALUES (?, ?, ?, NOW(), "Completed", ?)',
+            'INSERT INTO payments (member_id, amount, payment_method, payment_date, status, ref_no) VALUES (?, ?, ?, NOW(), \'Completed\', ?)',
             [newMemberId, price, methodToSave, refNo]
         );
         
@@ -181,7 +181,7 @@ export const updateMember = async (req, res) => {
 
             await db.query(updateQuery, params);
             
-            await db.query('INSERT INTO payments (member_id, amount, payment_method, payment_date, status) VALUES (?, ?, ?, NOW(), "Completed")', [id, price, paymentMethod || 'Cash']);
+            await db.query('INSERT INTO payments (member_id, amount, payment_method, payment_date, status) VALUES (?, ?, ?, NOW(), \'Completed\')', [id, price, paymentMethod || 'Cash']);
             await logActivity(`Renewed ${firstName} ${lastName}'s plan (${safeRole}) - Paid ₱${price}`, 'payment', image);
         } else {
             updateQuery += ` WHERE id=?`;
