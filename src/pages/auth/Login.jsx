@@ -16,7 +16,7 @@ const Login = () => {
         setIsLoading(true)
 
         try {
-            const response = await api.post('/login', { email, password })
+            const response = await api.post('/login', data)
             if (response.data.success) {
                 localStorage.setItem('user', JSON.stringify(response.data.user))
                 navigate('/home') 
