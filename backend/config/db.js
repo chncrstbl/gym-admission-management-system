@@ -8,8 +8,10 @@ const db = mysql.createPool({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+    port: process.env.DB_PORT,
+    ssl: {
+        rejectUnauthorized: false // Required for cloud database connections like Aiven
+    },
 });
 
 export default db;
