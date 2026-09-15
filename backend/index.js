@@ -14,7 +14,10 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: 'https://gym-admission-management-system.vercel.app/', // Replace with your exact Vercel URL
+    credentials: true
+}));
 app.use(express.json());
 
 // Routes
