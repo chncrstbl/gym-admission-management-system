@@ -169,7 +169,7 @@ const Login = () => {
                         <button 
                             type="submit" 
                             disabled={isLoading}
-                            className="w-full bg-white border border-gray-100 text-[#01358a] font-bold py-3.5 rounded-lg shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] disabled:opacity-70 mt-4"
+                            className="cursor-pointer w-full bg-white border border-gray-100 text-[#01358a] font-bold py-3.5 rounded-lg shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] disabled:opacity-70 mt-4"
                         >
                             {isLoading ? 'Logging In...' : 'Login'}
                         </button>
@@ -183,7 +183,7 @@ const Login = () => {
                         <button 
                             type="button"
                             onClick={() => alert("Contact Administrator to create a new account.")}
-                            className="w-full bg-gradient-to from-[#00174f] to-[#0078d7] text-white font-bold py-3.5 rounded-lg shadow-[0_4px_14px_rgba(0,120,215,0.3)] hover:opacity-95 transition-all active:scale-[0.98]"
+                            className="cursor-pointer w-full bg-gradient-to from-[#00174f] to-[#0078d7] text-white font-bold py-3.5 rounded-lg shadow-[0_4px_14px_rgba(0,120,215,0.3)] hover:opacity-95 transition-all active:scale-[0.98]"
                         >
                             Sign up
                         </button>
