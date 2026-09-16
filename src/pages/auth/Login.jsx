@@ -11,15 +11,10 @@ const Login = () => {
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
+    // Route guard: Check both persistent and temporary storage
     useEffect(() => {
-        const savedEmail = localStorage.getItem('rememberedEmail')
-        if (savedEmail) {
-            setEmail(savedEmail)
-            setRememberMe(true)
-        }
-
-        const user = localStorage.getItem('user')
-        const token = localStorage.getItem('token')
+        const user = localStorage.getItem('user') || sessionStorage.getItem('user')
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
         
         if (user || token) {
             navigate('/home', { replace: true }) 
@@ -34,16 +29,13 @@ const Login = () => {
         try {
             const response = await api.post('/login', { email, password })
             if (response.data.success) {
-                if (rememberMe) {
-                    localStorage.setItem('rememberedEmail', email)
-                } else {
-                    localStorage.removeItem('rememberedEmail')
-                }
                 
-                localStorage.setItem('user', JSON.stringify(response.data.user))
+                const storageTarget = rememberMe ? localStorage : sessionStorage
+                
+                storageTarget.setItem('user', JSON.stringify(response.data.user))
                 
                 if (response.data.token) {
-                    localStorage.setItem('token', response.data.token)
+                    storageTarget.setItem('token', response.data.token)
                 }
                 
                 navigate('/home', { replace: true }) 
@@ -63,6 +55,7 @@ const Login = () => {
             {/* Left Panel */}
             <div className="relative w-full md:w-1/2 bg-gradient-to-br from-[#041a5f] via-[#01358a] to-[#0078d7] flex flex-col justify-center p-8 md:p-10 lg:p-20 text-white overflow-hidden min-h-[45vh] md:min-h-screen">
                 
+                {/* Decorative Diagonal Lines */}
                 <div 
                     className="absolute inset-0 opacity-30 pointer-events-none"
                     style={{ 
