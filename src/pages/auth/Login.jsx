@@ -53,7 +53,7 @@ const Login = () => {
         <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#f8fafc] font-sans">
             
             {/* Left Panel */}
-            <div className="relative w-full md:w-1/2 bg-gradient-to-br from-[#041a5f] via-[#01358a] to-[#0078d7] flex flex-col justify-center p-8 md:p-10 lg:p-20 text-white overflow-hidden min-h-[45vh] md:min-h-screen">
+            <div className="relative w-full md:w-1/2 bg-linear-to-br from-[#041a5f] via-[#01358a] to-[#0078d7] flex flex-col justify-center p-8 md:p-10 lg:p-20 text-white overflow-hidden min-h-[45vh] md:min-h-screen">
                 
                 {/* Decorative Diagonal Lines */}
                 <div 
@@ -94,7 +94,7 @@ const Login = () => {
             {/* Right Panel - Login Form */}
             <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-12 relative">
                 
-                <div className="w-full max-w-[400px]">
+                <div className="w-full max-w-130">
                     <form onSubmit={handleLogin} className="space-y-5">
                         
                         {error && (
@@ -105,7 +105,7 @@ const Login = () => {
 
                         {/* Email Input Structure */}
                         <div className="bg-white flex items-stretch border border-gray-200 rounded-lg overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                            <div className="bg-[#a5c8ff] w-12 flex-shrink-0 flex items-center justify-center m-1.5 rounded-md">
+                            <div className="bg-[#a5c8ff] w-12 shrink-0 flex items-center justify-center m-1.5 rounded-md">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#01358a]" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                                     <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
@@ -128,7 +128,7 @@ const Login = () => {
 
                         {/* Password Input Structure */}
                         <div className="bg-white flex items-stretch border border-gray-200 rounded-lg overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                            <div className="bg-[#a5c8ff] w-12 flex-shrink-0 flex items-center justify-center m-1.5 rounded-md">
+                            <div className="bg-[#a5c8ff] w-12 shrink-0 flex items-center justify-center m-1.5 rounded-md">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#01358a]" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                                 </svg>
@@ -183,7 +183,7 @@ const Login = () => {
                         <button 
                             type="button"
                             onClick={() => alert("Contact Administrator to create a new account.")}
-                            className="cursor-pointer w-full bg-gradient-to-r from-[#00174f] to-[#0078d7] text-white font-bold py-3.5 rounded-lg shadow-[0_4px_14px_rgba(0,120,215,0.3)] hover:opacity-85 transition-all active:scale-[0.98]"
+                            className="cursor-pointer w-full bg-linear-to-r from-[#00174f] to-[#0078d7] text-white font-bold py-3.5 rounded-lg shadow-[0_4px_14px_rgba(0,120,215,0.3)] hover:opacity-85 transition-all active:scale-[0.98]"
                         >
                             Sign up
                         </button>
