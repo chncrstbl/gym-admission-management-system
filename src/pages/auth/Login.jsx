@@ -29,14 +29,13 @@ const Login = () => {
         try {
             const response = await api.post('/login', { email, password })
             if (response.data.success) {
-                
-                const storageTarget = rememberMe ? localStorage : sessionStorage
-                
-                storageTarget.setItem('user', JSON.stringify(response.data.user))
-                
-                if (response.data.token) {
-                    storageTarget.setItem('token', response.data.token)
+                if (rememberMe) {
+                    localStorage.setItem('rememberedEmail', email)
+                } else {
+                    localStorage.removeItem('rememberedEmail')
                 }
+                
+                localStorage.setItem('user', JSON.stringify(response.data.user))
                 
                 navigate('/home', { replace: true }) 
             } else {
