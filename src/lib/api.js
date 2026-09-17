@@ -4,13 +4,6 @@ const api = axios.create({
     baseURL: 'https://gym-admission-management-system.onrender.com/api',
 });
 
-api.interceptors.response.use(async (response) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return response;
-}, (error) => {
-    return Promise.reject(error);
-});
-
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     
