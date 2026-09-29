@@ -61,7 +61,7 @@ export default function MemberProfile() {
     if (loading) {
         return (
             <div role="status" aria-label="Loading member profile" aria-busy="true" className="grid w-full grid-cols-1 items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-                <Skeleton className="h-[520px] w-full rounded-xl bg-slate-800" />
+                <Skeleton className="h-130 w-full rounded-xl bg-slate-800" />
                 <div className="space-y-5">
                     <div className="space-y-2 border-b border-slate-200 pb-4"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-80 max-w-full" /></div>
                     {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-32 w-full rounded-lg" />)}
