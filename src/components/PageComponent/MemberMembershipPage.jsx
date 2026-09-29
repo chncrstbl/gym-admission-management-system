@@ -1,5 +1,6 @@
 // src/pages/member/MemberMembership.jsx
 import { useState, useEffect } from 'react';
+import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 import usePaymentPortal from '../../hooks/PaymentPortal';
 
@@ -90,11 +91,16 @@ export default function MemberMembership() {
 
     if (loading) {
         return (
-            <div className="flex-1 flex items-center justify-center p-12 text-slate-500">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-sm font-medium">Loading Membership Details...</span>
+            <div role="status" aria-label="Loading membership details" aria-busy="true" className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="w-full max-w-md space-y-3"><Skeleton className="h-8 w-3/4" /><Skeleton className="h-4 w-full" /></div>
+                    <Skeleton className="h-10 w-44 rounded-lg" />
                 </div>
+                <Skeleton className="h-44 w-full rounded-xl" />
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                    {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-72 w-full rounded-xl" />)}
+                </div>
+                <Skeleton className="h-64 w-full rounded-xl" />
             </div>
         );
     }

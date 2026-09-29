@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Download, Settings2, UserRound, Phone, CreditCard, ShieldCheck } from 'lucide-react';
+import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 
 export default function MemberProfile() {
@@ -59,10 +60,11 @@ export default function MemberProfile() {
 
     if (loading) {
         return (
-            <div className="flex-1 flex items-center justify-center p-12 text-slate-500">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-sm font-medium">Loading Profile...</span>
+            <div role="status" aria-label="Loading member profile" aria-busy="true" className="grid w-full grid-cols-1 items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+                <Skeleton className="h-[520px] w-full rounded-xl bg-slate-800" />
+                <div className="space-y-5">
+                    <div className="space-y-2 border-b border-slate-200 pb-4"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-80 max-w-full" /></div>
+                    {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-32 w-full rounded-lg" />)}
                 </div>
             </div>
         );

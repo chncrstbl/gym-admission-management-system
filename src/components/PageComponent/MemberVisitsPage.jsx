@@ -1,6 +1,7 @@
 // src/pages/member/MemberVisits.jsx
 import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 
 export default function MemberVisits() {
@@ -85,7 +86,21 @@ export default function MemberVisits() {
     };
     const averageDuration = stats.averageMinutes == null ? 'N/A' : formatDuration(stats.averageMinutes);
 
-    if (loading) return <div className="p-8 text-sm text-slate-500">Loading attendance history...</div>;
+    if (loading) {
+        return (
+            <div role="status" aria-label="Loading attendance history" aria-busy="true" className="mx-auto max-w-6xl space-y-6">
+                <div className="space-y-2"><Skeleton className="h-7 w-64" /><Skeleton className="h-4 w-96 max-w-full" /></div>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <Skeleton className="h-96 w-full rounded-xl" />
+                    <div className="space-y-6 lg:col-span-2">
+                        <Skeleton className="h-52 w-full rounded-xl" />
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-28 w-full rounded-xl" />)}</div>
+                    </div>
+                </div>
+                <Skeleton className="h-80 w-full rounded-xl" />
+            </div>
+        );
+    }
 
     return (
             <div className="max-w-6xl mx-auto space-y-6">

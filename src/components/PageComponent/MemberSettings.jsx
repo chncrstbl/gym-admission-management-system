@@ -1,5 +1,6 @@
 // src/pages/member/MemberSettings.jsx
 import { useState, useEffect } from 'react';
+import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 
 export default function MemberSettings() {
@@ -122,7 +123,17 @@ export default function MemberSettings() {
         { id: 'privacy', label: 'Privacy', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' }
     ];
 
-    if (loading) return <div className="p-8 text-sm text-slate-500">Loading account settings...</div>;
+    if (loading) {
+        return (
+            <div role="status" aria-label="Loading account settings" aria-busy="true" className="mx-auto max-w-6xl space-y-6">
+                <div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-80 max-w-full" /></div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-[256px_minmax(0,1fr)]">
+                    <Skeleton className="h-64 w-full rounded-xl" />
+                    <Skeleton className="h-96 w-full rounded-xl" />
+                </div>
+            </div>
+        );
+    }
     if (!notifications) return <div role="alert" className="m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error || 'Settings could not be loaded.'}</div>;
 
     return (

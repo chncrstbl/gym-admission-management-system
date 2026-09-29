@@ -1,6 +1,7 @@
 // src/pages/member/MemberDashboard.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 
 const formatDateTime = (value) => {
@@ -40,10 +41,14 @@ export default function MemberDashboard() {
 
     if (loading) {
         return (
-            <div className="flex-1 flex items-center justify-center p-12 text-blue-200">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-sm font-medium">Loading Dashboard...</span>
+            <div role="status" aria-label="Loading member dashboard" aria-busy="true" className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+                <Skeleton className="h-40 w-full rounded-2xl" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-28 w-full rounded-xl" />)}
+                </div>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <Skeleton className="h-72 w-full rounded-xl lg:col-span-2" />
+                    <Skeleton className="h-72 w-full rounded-xl" />
                 </div>
             </div>
         );

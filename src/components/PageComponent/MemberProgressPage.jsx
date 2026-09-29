@@ -1,5 +1,6 @@
 // src/pages/member/MemberProgress.jsx
 import { useState, useEffect } from 'react';
+import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 
 export default function MemberProgress() {
@@ -114,7 +115,15 @@ export default function MemberProgress() {
         }
     };
 
-    if (loading) return <div className="p-8 text-sm text-slate-500">Loading fitness progress...</div>;
+    if (loading) {
+        return (
+            <div role="status" aria-label="Loading fitness progress" aria-busy="true" className="mx-auto max-w-6xl space-y-6">
+                <div className="flex items-center justify-between gap-4"><div className="w-full max-w-md space-y-2"><Skeleton className="h-7 w-64" /><Skeleton className="h-4 w-full" /></div><Skeleton className="h-10 w-48 rounded-lg" /></div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-28 w-full rounded-xl" />)}</div>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3"><Skeleton className="h-80 w-full rounded-xl lg:col-span-2" /><Skeleton className="h-80 w-full rounded-xl" /></div>
+            </div>
+        );
+    }
 
     return (
         <>
