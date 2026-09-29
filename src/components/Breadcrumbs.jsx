@@ -2,35 +2,56 @@ import { useLocation, Link } from 'react-router-dom';
 
 const Breadcrumbs = () => {
     const location = useLocation();
-    let currentLink = '';
-    const crumbs = location.pathname.split('/')
-        .filter(crumb => crumb !== '')
-        .map(crumb => {
-        currentLink += `/${crumb}`;
-        return {
-            id: crumb,
-            name: crumb,
-            path: currentLink
-        };
-        });
-
-        const formatName = (name) => {
-        return name
-        .replace(/-/g, ' ')
-        .charAt(0).toUpperCase() + name.slice(1).replace(/-/g, ' ');
+    const pathname = location.pathname.replace(/\/+$/, '') || '/';
+    const isMemberPortal = pathname === '/member' || pathname.startsWith('/member/');
+    const homePath = isMemberPortal ? '/member/dashboard' : '/home';
+    const homeLabel = isMemberPortal ? 'Dashboard' : 'Home';
+    const isHomePage = pathname === homePath;
+    const routeLabels = {
+        dashboard: 'Dashboard',
+        profile: 'Profile',
+        membership: 'Membership',
+        visits: 'Check-In & Visits',
+        progress: 'Fitness Progress',
+        settings: 'Settings',
+        overview: 'Overview',
+        members: 'Members',
+        equipment: 'Equipment',
+        finance: 'Finance'
     };
+    const segments = pathname.split('/').filter(Boolean)
+        .filter((segment, index) => !(isMemberPortal && index === 0 && segment === 'member'));
+    const routeSegments = isHomePage ? [] : segments;
+    const crumbs = routeSegments.map((segment, index) => {
+        const routePath = [...(isMemberPortal ? ['member'] : []), ...routeSegments.slice(0, index + 1)];
+        const currentPath = `/${routePath.join('/')}`;
+        return {
+            id: currentPath,
+            name: routeLabels[segment] || segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+            path: currentPath
+        };
+    });
 
 return (
         <nav className="flex pl-3" aria-label="Breadcrumb">
-        <ol className="inline-flex items-center space-x-1 md:space-x-3">
+        <ol className="inline-flex flex-wrap items-center gap-x-1 gap-y-1 md:gap-x-3">
 
             <li className="inline-flex items-center">
-            <Link to="/home" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-blue-600">
+            {isHomePage ? (
+                <span className="inline-flex items-center text-sm font-medium text-gray-700" aria-current="page">
                 <svg className="w-3 h-3 mr-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                 <path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"/>
                 </svg>
-                Home
-            </Link>
+                {homeLabel}
+                </span>
+            ) : (
+                <Link to={homePath} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-blue-600">
+                    <svg className="w-3 h-3 mr-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"/>
+                    </svg>
+                    {homeLabel}
+                </Link>
+            )}
             </li>
 
             {crumbs.map((crumb, index) => {
@@ -46,13 +67,13 @@ return (
                     
                     {isLast ? (
 
-                    <span className="ml-1 text-sm font-medium text-gray-700 md:ml-2">
-                        {formatName(crumb.name)}
+                    <span className="ml-1 text-sm font-medium text-gray-700 md:ml-2" aria-current="page">
+                        {crumb.name}
                     </span>
                     ) : (
 
                     <Link to={crumb.path} className="ml-1 text-sm font-medium text-gray-500 hover:text-blue-600 md:ml-2">
-                        {formatName(crumb.name)}
+                        {crumb.name}
                     </Link>
                     )}
                 </div>

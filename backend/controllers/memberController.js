@@ -220,6 +220,12 @@ export const processQRCheckIn = async (req, res) => {
             return res.status(403).json({ error: `${member.first_name}'s membership tier package is currently expired.` });
         }
 
+        await db.query(
+            `INSERT INTO attendance (member_id, check_in_time, terminal, method, status)
+                VALUES (?, NOW(), ?, ?, ?)`,
+            [member.id, 'Main Turnstile', 'QR Scan', 'Approved']
+        );
+
         await logActivity(`${member.first_name} ${member.last_name} checked in via QR scanner`, 'check-in', member.image);
         res.status(200).json({ success: true, memberName: `${member.first_name} ${member.last_name}` });
     } catch (error) {

@@ -3,8 +3,8 @@ import { useCallback } from 'react';
 const usePaymentPortal = () => {
     const openPortal = useCallback((method) => {
         return new Promise((resolve) => {
-            if (!method || ['Cash', 'N/A', ''].includes(method)) {
-                resolve(); 
+            if (!method || ['Cash', 'Cash Desk', 'N/A', ''].includes(method)) {
+                resolve(true);
                 return;
             }
 
@@ -20,7 +20,7 @@ const usePaymentPortal = () => {
             );
 
             if (!popup) {
-                resolve();
+                resolve(false);
                 return;
             }
 
@@ -48,8 +48,9 @@ const usePaymentPortal = () => {
             `);
 
             setTimeout(() => {
-                if (!popup.closed) popup.close();
-                resolve();
+                const paymentCompleted = !popup.closed;
+                if (paymentCompleted) popup.close();
+                resolve(paymentCompleted);
             }, 5000);
         });
     }, []);

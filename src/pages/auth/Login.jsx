@@ -13,40 +13,55 @@ const Login = () => {
 
     // Route guard: Check both persistent and temporary storage
     useEffect(() => {
-        const user = localStorage.getItem('user') || sessionStorage.getItem('user')
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
-        
-        if (user || token) {
-            navigate('/home', { replace: true }) 
+        const user = localStorage.getItem('user');
+        if (user && user !== 'undefined' && user !== 'null') {
+            try {
+                const parsed = JSON.parse(user);
+                if (parsed && parsed.id) {
+                    const userType = localStorage.getItem('userType') || parsed.role;
+                    navigate(userType === 'member' ? '/member/dashboard' : '/home', { replace: true });
+                }
+            } catch {
+                localStorage.removeItem('user');
+            }
         }
-    }, [navigate])
+    }, [navigate]);
 
     const handleLogin = async (e) => {
-        e.preventDefault()
-        setError('')
-        setIsLoading(true)
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
 
         try {
-            const response = await api.post('/login', { email, password })
+            const response = await api.post('/login', { email, password });
             if (response.data.success) {
                 if (rememberMe) {
-                    localStorage.setItem('rememberedEmail', email)
+                    localStorage.setItem('rememberedEmail', email);
                 } else {
-                    localStorage.removeItem('rememberedEmail')
+                    localStorage.removeItem('rememberedEmail');
                 }
                 
-                localStorage.setItem('user', JSON.stringify(response.data.user))
+                // Support either response.data.user or response.data.data safely
+                const userData = response.data.user || response.data.data;
+                const userType = response.data.userType || (userData?.role === 'member' ? 'member' : 'admin');
+
+                localStorage.setItem('user', JSON.stringify(userData));
+                localStorage.setItem('userType', userType);
                 
-                navigate('/home', { replace: true }) 
+                if (userType === 'member') {
+                    navigate('/member/dashboard', { replace: true });
+                } else {
+                    navigate('/home', { replace: true });
+                }
             } else {
-                setError("Login failed: Server response invalid")
+                setError("Login failed: Server response invalid");
             }
         } catch (err) {
-            setError(err.response?.data?.message || "Invalid email or password.")
+            setError(err.response?.data?.message || "Invalid email or password.");
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
-    }
+    };
 
     return (
         <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#f8fafc] font-sans">
