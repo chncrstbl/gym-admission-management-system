@@ -275,6 +275,17 @@ export const saveMemberProfile = async (req, res) => {
     if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
         return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
     }
+    const optionalTextFields = [firstName, lastName, gender, contactNumber, address, emergencyContactName, emergencyContactPhone];
+    if (optionalTextFields.some((value) => value != null && typeof value !== 'string')) {
+        return res.status(400).json({ success: false, message: 'Profile fields must be text.' });
+    }
+    if (gender?.trim() && !['Male', 'Female', 'Other'].includes(gender.trim())) {
+        return res.status(400).json({ success: false, message: 'Choose Male, Female, or Other for gender.' });
+    }
+    const phonePattern = /^\d{11}$/;
+    if ([contactNumber, emergencyContactPhone].some((phone) => phone?.trim() && !phonePattern.test(phone.trim()))) {
+        return res.status(400).json({ success: false, message: 'Mobile and emergency contact numbers must contain exactly 11 digits.' });
+    }
 
     let connection;
     try {

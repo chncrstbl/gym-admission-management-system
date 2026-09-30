@@ -1,5 +1,6 @@
 // src/pages/member/MemberSettings.jsx
 import { useState, useEffect } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 
@@ -23,6 +24,7 @@ export default function MemberSettings() {
     const [settingsAvailable, setSettingsAvailable] = useState(true);
 
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+    const [passwordVisibility, setPasswordVisibility] = useState({ current: false, new: false, confirm: false });
     const [notifications, setNotifications] = useState(null);
 
     useEffect(() => {
@@ -37,7 +39,7 @@ export default function MemberSettings() {
                     firstName: profile?.first_name || '',
                     lastName: profile?.last_name || '',
                     dob: profile?.dob ? String(profile.dob).slice(0, 10) : '',
-                    gender: profile?.gender || '',
+                    gender: ['Male', 'Female', 'Other'].includes(profile?.gender) ? profile.gender : '',
                     email: profile?.email || '',
                     contactNumber: profile?.contact_number || '',
                     address: profile?.address || '',
@@ -112,15 +114,17 @@ export default function MemberSettings() {
 
     const handleProfileFieldChange = (event) => {
         const { name, value } = event.target;
-        setProfileForm((current) => ({ ...current, [name]: value }));
+        const fieldValue = ['contactNumber', 'emergencyContactPhone'].includes(name)
+            ? value.replace(/\D/g, '').slice(0, 11)
+            : value;
+        setProfileForm((current) => ({ ...current, [name]: fieldValue }));
     };
 
 
     const tabs = [
         { id: 'account', label: 'Account Details', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
         { id: 'security', label: 'Password & Security', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
-        { id: 'notifications', label: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
-        { id: 'privacy', label: 'Privacy', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' }
+        { id: 'notifications', label: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' }
     ];
 
     if (loading) {
@@ -205,7 +209,12 @@ export default function MemberSettings() {
                                         </div>
                                         <div>
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Gender</label>
-                                            <input type="text" name="gender" value={profileForm.gender} onChange={handleProfileFieldChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                            <select name="gender" value={profileForm.gender} onChange={handleProfileFieldChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="" disabled hidden>Select gender</option>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Other">Other</option>
+                                            </select>
                                         </div>
                                         <div className="sm:col-span-2">
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
@@ -215,6 +224,7 @@ export default function MemberSettings() {
                                                 required
                                                 value={profileForm.email}
                                                 autoComplete="email"
+                                                inputMode="email"
                                                 onChange={handleProfileFieldChange}
                                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             />
@@ -222,24 +232,13 @@ export default function MemberSettings() {
                                         <div>
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Mobile Number</label>
                                             <input 
-                                                type="text" 
+                                                type="tel"
                                                 name="contactNumber"
+                                                inputMode="numeric"
+                                                pattern="[0-9]{11}"
+                                                maxLength={11}
+                                                title="Enter an 11-digit mobile number."
                                                 value={profileForm.contactNumber}
-                                                autoComplete="tel"
-                                                onChange={handleProfileFieldChange}
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Emergency Contact Name</label>
-                                            <input type="text" name="emergencyContactName" value={profileForm.emergencyContactName} onChange={handleProfileFieldChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Emergency Contact Phone</label>
-                                            <input 
-                                                type="text" 
-                                                name="emergencyContactPhone"
-                                                value={profileForm.emergencyContactPhone}
                                                 autoComplete="tel"
                                                 onChange={handleProfileFieldChange}
                                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -248,6 +247,27 @@ export default function MemberSettings() {
                                         <div className="sm:col-span-2">
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Home Address</label>
                                             <textarea name="address" rows="3" value={profileForm.address} onChange={handleProfileFieldChange} autoComplete="street-address" className="w-full resize-y bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                        </div>
+                                        <div className="sm:col-span-2 grid grid-cols-1 gap-5 border-t border-slate-200 pt-4 sm:grid-cols-2">
+                                            <div>
+                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Emergency Contact Name</label>
+                                                <input type="text" name="emergencyContactName" value={profileForm.emergencyContactName} onChange={handleProfileFieldChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Emergency Contact Phone</label>
+                                                <input
+                                                    type="tel"
+                                                    name="emergencyContactPhone"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]{11}"
+                                                    maxLength={11}
+                                                    title="Enter an 11-digit mobile number."
+                                                    value={profileForm.emergencyContactPhone}
+                                                    autoComplete="tel"
+                                                    onChange={handleProfileFieldChange}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -264,37 +284,30 @@ export default function MemberSettings() {
                                     <div className="max-w-md space-y-4">
                                         <div>
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Current Password</label>
-                                            <input 
-                                                type="password" 
-                                                value={passwords.current}
-                                                required={Boolean(passwords.new)}
-                                                onChange={(e) => setPasswords({...passwords, current: e.target.value})}
-                                                placeholder="••••••••"
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            />
+                                            <div className="relative">
+                                                <input type={passwordVisibility.current ? 'text' : 'password'} value={passwords.current} required={Boolean(passwords.new)} onChange={(e) => setPasswords({ ...passwords, current: e.target.value })} placeholder="Current password" autoComplete="current-password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 pr-11 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <button type="button" onClick={() => setPasswordVisibility({ ...passwordVisibility, current: !passwordVisibility.current })} aria-label={passwordVisibility.current ? 'Hide current password' : 'Show current password'} aria-pressed={passwordVisibility.current} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-800">
+                                                    {passwordVisibility.current ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </button>
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">New Password</label>
-                                            <input 
-                                                type="password" 
-                                                value={passwords.new}
-                                                required
-                                                minLength={8}
-                                                onChange={(e) => setPasswords({...passwords, new: e.target.value})}
-                                                placeholder="••••••••"
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            />
+                                            <div className="relative">
+                                                <input type={passwordVisibility.new ? 'text' : 'password'} value={passwords.new} required minLength={8} onChange={(e) => setPasswords({ ...passwords, new: e.target.value })} placeholder="New password" autoComplete="new-password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 pr-11 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <button type="button" onClick={() => setPasswordVisibility({ ...passwordVisibility, new: !passwordVisibility.new })} aria-label={passwordVisibility.new ? 'Hide new password' : 'Show new password'} aria-pressed={passwordVisibility.new} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-800">
+                                                    {passwordVisibility.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </button>
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Confirm New Password</label>
-                                            <input 
-                                                type="password" 
-                                                value={passwords.confirm}
-                                                required={Boolean(passwords.new)}
-                                                onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
-                                                placeholder="••••••••"
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            />
+                                            <div className="relative">
+                                                <input type={passwordVisibility.confirm ? 'text' : 'password'} value={passwords.confirm} required={Boolean(passwords.new)} minLength={8} onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })} placeholder="Confirm new password" autoComplete="new-password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 pr-11 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <button type="button" onClick={() => setPasswordVisibility({ ...passwordVisibility, confirm: !passwordVisibility.confirm })} aria-label={passwordVisibility.confirm ? 'Hide password confirmation' : 'Show password confirmation'} aria-pressed={passwordVisibility.confirm} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-800">
+                                                    {passwordVisibility.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -361,25 +374,7 @@ export default function MemberSettings() {
                                 </div>
                             )}
 
-                            {/* TAB: Privacy */}
-                            {activeTab === 'privacy' && (
-                                <div className="space-y-6 animate-in fade-in duration-300">
-                                    <div className="pb-4 border-b border-slate-100">
-                                        <h3 className="text-base font-extrabold text-[#041a5f]">Privacy Controls</h3>
-                                        <p className="text-xs text-slate-400">Manage how your data is used across the facility.</p>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 text-xs text-blue-900 leading-relaxed">
-                                            Your account details are used to manage facility access, membership billing, and emergency contact information.
-                                        </div>
-                                        
-                                    </div>
-                                </div>
-                            )}
-
                             {/* Sticky Bottom Save Button */}
-                            {activeTab !== 'privacy' && (
                             <div className="mt-8 pt-5 border-t border-slate-100 flex justify-end">
                                 <button
                                     type="submit"
@@ -396,7 +391,6 @@ export default function MemberSettings() {
                                     )}
                                 </button>
                             </div>
-                            )}
 
                         </form>
                     </div>
