@@ -1,6 +1,7 @@
 // src/pages/member/MemberProgress.jsx
 import { useState, useEffect } from 'react';
 import Skeleton from '../Skeletons';
+import BaseModal from '../Modals/BaseModal';
 import api from '../../lib/api';
 
 export default function MemberProgress() {
@@ -313,33 +314,56 @@ export default function MemberProgress() {
             </div>
 
             {modalMode && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <form onSubmit={modalMode === 'measurement' ? handleSaveMeasurement : handleSaveGoal} className="w-full max-w-md space-y-4 rounded-xl bg-white p-6 shadow-xl">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-bold text-slate-900">{modalMode === 'measurement' ? 'Add Measurement' : 'Set Fitness Goal'}</h2>
-                            <button type="button" onClick={() => setModalMode(null)} className="text-slate-500" aria-label="Close">×</button>
-                        </div>
+                <BaseModal
+                    isOpen={Boolean(modalMode)}
+                    onClose={() => !saving && setModalMode(null)}
+                    title={modalMode === 'measurement' ? 'Add Measurement' : 'Set Fitness Goal'}
+                    maxWidth="max-w-xl"
+                >
+                    <form onSubmit={modalMode === 'measurement' ? handleSaveMeasurement : handleSaveGoal} className="space-y-5">
                         {modalMode === 'measurement' ? (
-                            <>
-                                <label className="block text-sm text-slate-700">Weight (kg)<input type="number" min="0.1" step="0.1" value={measurementForm.weight} onChange={(event) => setMeasurementForm({ ...measurementForm, weight: event.target.value })} className="mt-1 w-full rounded border border-slate-300 p-2" /></label>
-                                <label className="block text-sm text-slate-700">Body fat (%)<input type="number" min="0.1" step="0.1" value={measurementForm.bodyFat} onChange={(event) => setMeasurementForm({ ...measurementForm, bodyFat: event.target.value })} className="mt-1 w-full rounded border border-slate-300 p-2" /></label>
-                                <label className="block text-sm text-slate-700">Muscle mass (kg)<input type="number" min="0.1" step="0.1" value={measurementForm.muscleMass} onChange={(event) => setMeasurementForm({ ...measurementForm, muscleMass: event.target.value })} className="mt-1 w-full rounded border border-slate-300 p-2" /></label>
-                                <label className="block text-sm text-slate-700">Notes<textarea value={measurementForm.notes} onChange={(event) => setMeasurementForm({ ...measurementForm, notes: event.target.value })} className="mt-1 w-full rounded border border-slate-300 p-2" /></label>
-                            </>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                    Weight <span className="font-normal text-slate-400">(kg)</span>
+                                    <input type="number" min="0.1" step="0.1" value={measurementForm.weight} onChange={(event) => setMeasurementForm({ ...measurementForm, weight: event.target.value })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                    Body fat <span className="font-normal text-slate-400">(%)</span>
+                                    <input type="number" min="0.1" step="0.1" value={measurementForm.bodyFat} onChange={(event) => setMeasurementForm({ ...measurementForm, bodyFat: event.target.value })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                    Muscle mass <span className="font-normal text-slate-400">(kg)</span>
+                                    <input type="number" min="0.1" step="0.1" value={measurementForm.muscleMass} onChange={(event) => setMeasurementForm({ ...measurementForm, muscleMass: event.target.value })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600 sm:col-span-2">
+                                    Notes
+                                    <textarea rows="3" value={measurementForm.notes} onChange={(event) => setMeasurementForm({ ...measurementForm, notes: event.target.value })} className="mt-1.5 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                                </label>
+                            </div>
                         ) : (
-                            <>
-                                <label className="block text-sm text-slate-700">Metric<select value={goalForm.metric} onChange={(event) => setGoalForm({ ...goalForm, metric: event.target.value })} className="mt-1 w-full rounded border border-slate-300 p-2">
-                                    <option value="weight">Weight</option><option value="body_fat">Body fat</option><option value="muscle_mass">Muscle mass</option><option value="monthly_visits">Monthly visits</option>
-                                </select></label>
-                                <label className="block text-sm text-slate-700">Target<input type="number" min="0.1" step="0.1" required value={goalForm.target} onChange={(event) => setGoalForm({ ...goalForm, target: event.target.value })} className="mt-1 w-full rounded border border-slate-300 p-2" /></label>
-                            </>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                    Fitness metric
+                                    <select value={goalForm.metric} onChange={(event) => setGoalForm({ ...goalForm, metric: event.target.value })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                        <option value="weight">Target weight</option>
+                                        <option value="body_fat">Body fat</option>
+                                        <option value="muscle_mass">Muscle mass</option>
+                                        <option value="monthly_visits" disabled={!progressAvailability.attendance}>Monthly visits{!progressAvailability.attendance ? ' (unavailable)' : ''}</option>
+                                    </select>
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                    Target value
+                                    <input type="number" min="0.1" step="0.1" required value={goalForm.target} onChange={(event) => setGoalForm({ ...goalForm, target: event.target.value })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                                </label>
+                            </div>
                         )}
-                        <div className="flex justify-end gap-2">
-                            <button type="button" onClick={() => setModalMode(null)} className="rounded border px-4 py-2 text-sm">Cancel</button>
-                            <button type="submit" disabled={saving} className="rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Saving...' : 'Save'}</button>
+                        {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                            <button type="button" disabled={saving} onClick={() => setModalMode(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+                            <button type="submit" disabled={saving} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60">{saving ? 'Saving...' : 'Save'}</button>
                         </div>
                     </form>
-                </div>
+                </BaseModal>
             )}
             </>
     );

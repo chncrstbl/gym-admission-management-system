@@ -21,19 +21,13 @@ export default function MemberSettings() {
         emergencyContactName: '',
         emergencyContactPhone: ''
     });
-    const [settingsAvailable, setSettingsAvailable] = useState(true);
-
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
     const [passwordVisibility, setPasswordVisibility] = useState({ current: false, new: false, confirm: false });
-    const [notifications, setNotifications] = useState(null);
 
     useEffect(() => {
         const fetchMemberData = async () => {
             try {
-                const [profileResponse, settingsResponse] = await Promise.all([
-                    api.get('/portal/profile'),
-                    api.get('/portal/settings')
-                ]);
+                const profileResponse = await api.get('/portal/profile');
                 const profile = profileResponse.data?.data;
                 setProfileForm({
                     firstName: profile?.first_name || '',
@@ -45,14 +39,6 @@ export default function MemberSettings() {
                     address: profile?.address || '',
                     emergencyContactName: profile?.emergency_contact_name || '',
                     emergencyContactPhone: profile?.emergency_contact_phone || ''
-                });
-                setSettingsAvailable(settingsResponse.data?.storageAvailable !== false);
-                const settings = settingsResponse.data?.data || {};
-                setNotifications({
-                    emailReceipts: Boolean(settings.email_receipts),
-                    smsAlerts: Boolean(settings.sms_alerts),
-                    promotions: Boolean(settings.promotions),
-                    attendanceLogs: Boolean(settings.attendance_logs)
                 });
             } catch (err) {
                 console.error('Failed to load member settings:', err);
@@ -79,24 +65,11 @@ export default function MemberSettings() {
                 return;
             }
         }
-        if (activeTab === 'notifications' && !settingsAvailable) {
-            setError('Notification preferences cannot be saved until their database table is installed.');
-            return;
-        }
-
         setIsSaving(true);
         try {
             if (activeTab === 'account') {
                 await api.put('/portal/profile', profileForm);
                 setSuccess('Account details saved.');
-            } else if (activeTab === 'notifications') {
-                await api.put('/portal/settings', {
-                    emailReceipts: notifications.emailReceipts,
-                    smsAlerts: notifications.smsAlerts,
-                    promotions: notifications.promotions,
-                    attendanceLogs: notifications.attendanceLogs
-                });
-                setSuccess('Notification preferences saved.');
             } else if (activeTab === 'security') {
                 await api.put('/portal/password', {
                     currentPassword: passwords.current,
@@ -123,8 +96,7 @@ export default function MemberSettings() {
 
     const tabs = [
         { id: 'account', label: 'Account Details', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-        { id: 'security', label: 'Password & Security', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
-        { id: 'notifications', label: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' }
+        { id: 'security', label: 'Password & Security', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' }
     ];
 
     if (loading) {
@@ -138,8 +110,6 @@ export default function MemberSettings() {
             </div>
         );
     }
-    if (!notifications) return <div role="alert" className="m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error || 'Settings could not be loaded.'}</div>;
-
     return (
             <div className="max-w-6xl mx-auto space-y-6">
 
@@ -313,72 +283,11 @@ export default function MemberSettings() {
                                 </div>
                             )}
 
-                            {/* TAB: Notifications */}
-                            {activeTab === 'notifications' && (
-                                <div className="space-y-6 animate-in fade-in duration-300">
-                                    <div className="pb-4 border-b border-slate-100">
-                                        <h3 className="text-base font-extrabold text-[#041a5f]">Notification Preferences</h3>
-                                        <p className="text-xs text-slate-400">Choose what updates you want to receive from us.</p>
-                                    </div>
-
-                                    {!settingsAvailable && (
-                                        <p role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                                            Preference storage is not installed. Apply backend/member-portal-schema.sql to enable saving these options.
-                                        </p>
-                                    )}
-                                    <fieldset disabled={!settingsAvailable} className="space-y-4 disabled:opacity-50">
-                                        {/* Toggle Item */}
-                                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                            <div>
-                                                <h4 className="text-xs font-bold text-slate-800">Email Receipts</h4>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">Receive digital payment receipts after renewal.</p>
-                                            </div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" className="sr-only peer" checked={notifications.emailReceipts} onChange={() => setNotifications({...notifications, emailReceipts: !notifications.emailReceipts})} />
-                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                                            </label>
-                                        </div>
-
-                                        {/* Toggle Item */}
-                                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                            <div>
-                                                <h4 className="text-xs font-bold text-slate-800">SMS Alerts</h4>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">Get texted when your membership is expiring.</p>
-                                            </div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" className="sr-only peer" checked={notifications.smsAlerts} onChange={() => setNotifications({...notifications, smsAlerts: !notifications.smsAlerts})} />
-                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                                            </label>
-                                        </div>
-
-                                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                            <div>
-                                                <h4 className="text-xs font-bold text-slate-800">Promotional Updates</h4>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">Receive occasional gym offers and announcements.</p>
-                                            </div>
-                                            <input type="checkbox" checked={notifications.promotions} onChange={() => setNotifications({ ...notifications, promotions: !notifications.promotions })} aria-label="Promotional updates" />
-                                        </div>
-
-                                        {/* Toggle Item */}
-                                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                            <div>
-                                                <h4 className="text-xs font-bold text-slate-800">Attendance Log Emails</h4>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">Monthly summary of your gym visits.</p>
-                                            </div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" className="sr-only peer" checked={notifications.attendanceLogs} onChange={() => setNotifications({...notifications, attendanceLogs: !notifications.attendanceLogs})} />
-                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                                            </label>
-                                        </div>
-                                    </fieldset>
-                                </div>
-                            )}
-
                             {/* Sticky Bottom Save Button */}
                             <div className="mt-8 pt-5 border-t border-slate-100 flex justify-end">
                                 <button
                                     type="submit"
-                                    disabled={isSaving || (activeTab === 'notifications' && !settingsAvailable)}
+                                    disabled={isSaving}
                                     className="bg-linear-to-r from-[#01358a] to-[#0078d7] hover:opacity-95 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition active:scale-[0.98] cursor-pointer flex items-center gap-2"
                                 >
                                     {isSaving ? (
@@ -387,7 +296,7 @@ export default function MemberSettings() {
                                             <span>Saving...</span>
                                         </>
                                     ) : (
-                                        <span>{activeTab === 'account' ? 'Save Account Details' : activeTab === 'security' ? 'Update Password' : 'Save Preferences'}</span>
+                                        <span>{activeTab === 'account' ? 'Save Account Details' : 'Update Password'}</span>
                                     )}
                                 </button>
                             </div>

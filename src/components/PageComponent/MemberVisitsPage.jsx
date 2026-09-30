@@ -160,7 +160,7 @@ export default function MemberVisits() {
                     </div>
 
                     {/* Real-Time Check-In Status & Attendance Metrics (2 Cols) */}
-                    <div className="lg:col-span-2 space-y-6 flex flex-col justify-between">
+                    <div className="lg:col-span-2 flex flex-col gap-6">
                         
                         {/* Live Status Widget */}
                         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
