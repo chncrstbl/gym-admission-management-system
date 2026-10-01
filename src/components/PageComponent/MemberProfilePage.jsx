@@ -83,12 +83,12 @@ export default function MemberProfile() {
     if (!member) return <div role="alert" className="m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error || 'Member profile could not be loaded.'}</div>;
 
     return (
-        <div className="member-page grid w-full grid-cols-1 items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="member-page grid w-full grid-cols-1 items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)] bg-[#f4f7fb]">
             {/* Digital access pass and member identity */}
-            <aside className="flex h-full flex-col items-center rounded-xl bg-[#061539] p-6 text-white shadow-sm sm:p-8">
+            <aside className="flex h-full flex-col items-center rounded-xl border border-slate-200 bg-transparent p-6 text-slate-800 shadow-sm sm:p-8">
                 <div className="w-full flex flex-col items-center">
                     <div className="relative mb-4">
-                        <div className="h-24 w-24 overflow-hidden rounded-full border-2 border-blue-300 bg-slate-800 ring-4 ring-blue-400/15">
+                        <div className="h-24 w-24 overflow-hidden rounded-full border-2 border-blue-700 bg-slate-800 ring-4 ring-blue-400/15">
                             {member?.image ? (
                                 <img src={member.image} alt={fullName} className="w-full h-full object-cover" />
                             ) : (
@@ -99,19 +99,19 @@ export default function MemberProfile() {
                         </div>
                     </div>
 
-                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-300">Member Profile</span>
-                    <h2 className="mt-2 text-xl font-bold text-white text-center leading-snug">{fullName}</h2>
-                    <span className="mt-1 text-xs font-medium text-blue-200">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-700">Member Profile</span>
+                    <h2 className="mt-2 text-xl font-bold text-slate-900 text-center leading-snug">{fullName}</h2>
+                    <span className="mt-1 text-xs font-medium text-slate-500">
                         Member ID {member.unique_id || 'Unavailable'}
                     </span>
 
                     <div className="mt-4 flex flex-wrap justify-center gap-2">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border ${isMembershipActive ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/30' : 'bg-rose-950/80 text-rose-300 border-rose-500/30'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isMembershipActive ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border ${isMembershipActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isMembershipActive ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
                             {status}
                         </span>
 
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-950/80 text-blue-300 border border-blue-500/30">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-50 text-blue-800 border border-blue-200">
                             <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                             </svg>
@@ -119,8 +119,8 @@ export default function MemberProfile() {
                         </span>
                     </div>
 
-                    <div className="mt-7 w-full rounded-xl bg-white p-4 text-slate-800 shadow-lg">
-                        <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="mt-7 w-full rounded-xl border border-slate-200 bg-transparent p-4 text-slate-800">
+                        <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Digital Access Pass</span>
                             <span className="text-[10px] font-semibold text-blue-700">QR</span>
                         </div>
@@ -133,7 +133,7 @@ export default function MemberProfile() {
                         <button
                             onClick={handleDownloadQR}
                             disabled={!member.unique_id}
-                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-xs font-bold text-[#01358a] transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-transparent py-2.5 text-xs font-bold text-[#01358a] transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Download size={15} aria-hidden="true" />
                             Download pass
@@ -141,7 +141,7 @@ export default function MemberProfile() {
                     </div>
                 </div>
 
-                <p className="mt-5 text-center text-xs text-blue-200">Present this pass at the gym entrance.</p>
+                <p className="mt-5 text-center text-xs text-slate-500">Present this pass at the gym entrance.</p>
             </aside>
 
             <div className="min-w-0 space-y-5 text-slate-800">

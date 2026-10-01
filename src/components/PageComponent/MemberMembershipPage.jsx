@@ -207,11 +207,14 @@ export default function MemberMembership() {
                         <p className="text-xs text-slate-400">Choose a package to renew your subscription.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div
+                        aria-label="Available membership packages"
+                        className="flex gap-4 overflow-x-auto snap-x snap-mandatory pt-3 pb-3 md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pt-0 md:pb-0"
+                    >
                         {plans.map((plan) => (
                             <div
                                 key={plan.id}
-                                className={`bg-white rounded-2xl border p-6 flex flex-col justify-between transition-all relative ${
+                                className={`w-[88%] shrink-0 snap-center bg-white rounded-2xl border p-6 flex flex-col justify-between transition-all relative md:w-auto md:shrink ${
                                     plan.popular 
                                         ? 'border-blue-400 shadow-md ring-2 ring-blue-500/10' 
                                         : 'border-slate-200/80 shadow-xs hover:border-slate-300'
