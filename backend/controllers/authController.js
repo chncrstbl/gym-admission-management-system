@@ -49,10 +49,11 @@ export const login = async (req, res) => {
             { expiresIn: '1d' }
         );
 
-        res.cookie('token', token, { 
+        const isProduction = process.env.NODE_ENV === 'production';
+        res.cookie('token', token, {
             httpOnly: true, 
-            secure: process.env.NODE_ENV === 'production', 
-            sameSite: 'lax' 
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax'
         });
         
         if (isMember) {
