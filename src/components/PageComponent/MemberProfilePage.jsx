@@ -83,7 +83,7 @@ export default function MemberProfile() {
     if (!member) return <div role="alert" className="m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error || 'Member profile could not be loaded.'}</div>;
 
     return (
-        <div className="member-page grid w-full grid-cols-1 items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="member-page grid w-full grid-cols-1 items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)] bg-[#f4f7fb]">
             {/* Digital access pass and member identity */}
             <aside className="flex h-full flex-col items-center rounded-xl border border-slate-200 bg-transparent p-6 text-slate-800 shadow-sm sm:p-8">
                 <div className="w-full flex flex-col items-center">
