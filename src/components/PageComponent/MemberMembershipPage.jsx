@@ -120,7 +120,7 @@ export default function MemberMembership() {
         : null;
 
     return (
-        <div className="flex-1 bg-[#f4f7fb] text-slate-800 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <div className="member-page flex-1 bg-[#f4f7fb] text-slate-800 p-4 sm:p-6 lg:p-8 overflow-y-auto">
             <div className="max-w-6xl mx-auto space-y-6">
                 {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
@@ -232,7 +232,7 @@ export default function MemberMembership() {
                                     </div>
 
                                     <div className="mb-4">
-                                        <span className="text-3xl font-black text-slate-900">₱{plan.price}</span>
+                                        <span className="text-3xl font-black text-slate-700">₱{plan.price}</span>
                                         <span className="text-xs font-semibold text-slate-400 ml-1">/ cycle</span>
                                     </div>
 

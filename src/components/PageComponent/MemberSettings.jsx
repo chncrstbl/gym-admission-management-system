@@ -111,7 +111,7 @@ export default function MemberSettings() {
         );
     }
     return (
-            <div className="max-w-6xl mx-auto space-y-6">
+            <div className="member-page max-w-6xl mx-auto space-y-6">
 
                 {/* Header Description */}
                 <div>

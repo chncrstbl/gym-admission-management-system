@@ -103,7 +103,7 @@ export default function MemberVisits() {
     }
 
     return (
-            <div className="max-w-6xl mx-auto space-y-6">
+            <div className="member-page max-w-6xl mx-auto space-y-6">
                 {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
                 {!attendanceAvailable && <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Attendance storage is not installed. Apply backend/member-portal-schema.sql to enable check-in history.</div>}
 

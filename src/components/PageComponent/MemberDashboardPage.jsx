@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Skeleton from '../Skeletons';
+import BaseModal from '../Modals/BaseModal';
 import api from '../../lib/api';
 
 const formatDateTime = (value) => {
@@ -18,6 +19,7 @@ export default function MemberDashboard() {
     const [dashboard, setDashboard] = useState(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+    const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -71,9 +73,13 @@ export default function MemberDashboard() {
     const daysRemaining = expirationDate && !Number.isNaN(expirationDate.getTime())
         ? Math.max(0, Math.ceil((expirationDate - new Date()) / (1000 * 60 * 60 * 24)))
         : null;
+    const summarizeAnnouncement = (content) => {
+        const text = content || 'No announcement details available.';
+        return text.length > 150 ? `${text.slice(0, 150).trim()}...` : text;
+    };
 
     return (
-        <div className="flex-1 bg-[#f4f7fb] text-slate-800 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <div className="member-page flex-1 bg-[#f4f7fb] text-slate-800 p-4 sm:p-6 lg:p-8 overflow-y-auto">
             <div className="max-w-6xl mx-auto space-y-6">
                 {error && (
                     <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -86,7 +92,7 @@ export default function MemberDashboard() {
                     <div>
                         <span className="text-blue-200 text-xs font-bold uppercase tracking-wider">Member Dashboard</span>
                         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
-                            Welcome back, {fullName}! 👋
+                            Welcome back, {fullName}
                         </h1>
                         <p className="text-blue-100 text-xs sm:text-sm mt-1">
                             Track your facility access, plan expiration, and workout check-ins.
@@ -96,7 +102,7 @@ export default function MemberDashboard() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => navigate('/member/profile')}
-                            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold px-4 py-2.5 rounded-xl transition backdrop-blur-sm cursor-pointer"
+                            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer"
                         >
                             View Digital Pass
                         </button>
@@ -174,7 +180,7 @@ export default function MemberDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
                     {/* Recent Check-In Visits (2 cols) */}
-                    <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+                    <div className="order-2 lg:order-1 lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
                         <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
                             <div>
                                 <h2 className="text-base font-extrabold text-[#041a5f]">Recent Visits History</h2>
@@ -215,7 +221,7 @@ export default function MemberDashboard() {
                     </div>
 
                     {/* Announcements & Gym Notice Card (1 col) */}
-                    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+                    <div className="order-1 lg:order-2 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
                         <div>
                             <div className="flex items-center gap-2 pb-4 border-b border-slate-100 mb-4">
                                 <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,13 +232,20 @@ export default function MemberDashboard() {
 
                             <div className="space-y-3.5">
                                 {announcements.length > 0 ? announcements.map((announcement) => (
-                                    <div key={announcement.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <article key={announcement.id} className="border-b border-slate-100 py-4 last:border-b-0">
                                         <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
                                             {announcement.category || 'Announcement'}
                                         </span>
                                         <h3 className="text-xs font-bold text-slate-800 mt-0.5">{announcement.title}</h3>
-                                        <p className="text-[11px] text-slate-500 mt-1">{announcement.content}</p>
-                                    </div>
+                                        <p className="text-[11px] leading-relaxed text-slate-500 mt-1">{summarizeAnnouncement(announcement.content)}</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedAnnouncement(announcement)}
+                                            className="mt-2 text-[11px] font-bold text-blue-600 hover:text-blue-800"
+                                        >
+                                            Read announcement
+                                        </button>
+                                    </article>
                                 )) : (
                                     <p className="text-sm text-slate-500">No announcements available.</p>
                                 )}
@@ -244,6 +257,31 @@ export default function MemberDashboard() {
                 </div>
 
             </div>
+
+            <BaseModal
+                isOpen={Boolean(selectedAnnouncement)}
+                onClose={() => setSelectedAnnouncement(null)}
+                title={selectedAnnouncement?.title || 'Announcement'}
+                maxWidth="max-w-xl"
+            >
+                {selectedAnnouncement && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                                {selectedAnnouncement.category || 'Announcement'}
+                            </span>
+                            {selectedAnnouncement.created_at && (
+                                <time className="text-xs text-slate-400">
+                                    {new Date(selectedAnnouncement.created_at).toLocaleDateString()}
+                                </time>
+                            )}
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600">
+                            {selectedAnnouncement.content}
+                        </p>
+                    </div>
+                )}
+            </BaseModal>
         </div>
     );
 }

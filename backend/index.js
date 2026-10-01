@@ -11,6 +11,7 @@ import activityRoutes from './routes/activityRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import memberPortalRoutes from './routes/memberPortalRoutes.js';
 import equipmentRoutes from './routes/equipmentRoutes.js';
+import announcementRoutes from './routes/announcementRoutes.js';
 
 dotenv.config();
 
@@ -57,6 +58,7 @@ app.use('/api', activityRoutes);
 app.use('/api', equipmentRoutes);
 app.use('/api', authRoutes); 
 app.use('/api', memberPortalRoutes);
+app.use('/api', announcementRoutes);
 
 const PORT = process.env.PORT || 5000;
 

@@ -1,5 +1,5 @@
 import DevCards from "../../components/Cards/DevCards";
-import HomeLayout from "../../layouts/HomeLayout";
+import PageLayout from "../../layouts/PageLayout";
 import teamMember1 from "../../assets/images/profile-1.png";
 import teamMember2 from "../../assets/images/profile-2.png";
 import teamMember3 from "../../assets/images/profile-3.png";
@@ -7,7 +7,7 @@ import teamMember4 from "../../assets/images/profile-4.png";
 
 const Home = () => {
     return (
-        <HomeLayout title="Gym Admission Management System">
+        <PageLayout title="Gym Admission Management System">
             <>
                 <div className="p-4 md:p-10 flex flex-col items-center">
                     <div className="w-full max-w-6xl">
@@ -48,7 +48,7 @@ const Home = () => {
                     </div>
                 </div>
             </>
-        </HomeLayout>
+        </PageLayout>
     );
 };
 

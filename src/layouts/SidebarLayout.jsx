@@ -13,19 +13,19 @@ const SidebarLayout = ({
     footer,
     children
 }) => {
-    const linkStyle = "p-2 rounded-lg transition-colors flex items-center gap-3 font-medium text-sm";
-    const activeStyle = "bg-blue-600 text-white shadow-lg";
+    const linkStyle = "p-2.5 rounded-lg transition-colors flex items-center gap-3 font-medium text-sm";
+    const activeStyle = "bg-blue-600 text-white shadow-none";
     const inactiveStyle = "text-slate-400 hover:text-white hover:bg-slate-800";
 
     return (
-        <aside className="h-full w-full bg-slate-900 text-white shadow-2xl flex flex-col justify-between overflow-y-auto font-sans">
+        <aside className="h-full w-full bg-slate-900 text-white flex flex-col justify-between overflow-y-auto font-sans">
             <div>
                 {/* Header Slot or Default Banner */}
                 {header ? (
                     header
                 ) : (
                     <div 
-                        className="relative h-32 w-full bg-cover bg-center mb-12" 
+                        className="relative h-28 w-full bg-cover bg-center mb-10" 
                         style={{ backgroundImage: bannerImage ? `url(${bannerImage})` : undefined }}
                     >
                         {logo && (
@@ -34,7 +34,7 @@ const SidebarLayout = ({
                                     <img 
                                         src={logo} 
                                         alt="Portal Logo"
-                                        className="h-24 w-24 rounded-full object-cover border-4 border-slate-900"
+                                        className="h-20 w-20 rounded-full object-cover border-4 border-slate-900"
                                     />
                                 </div>
                             </div>

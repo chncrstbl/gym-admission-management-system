@@ -21,3 +21,22 @@ export const verifyToken = (req, res, next) => {
         res.status(401).json({ success: false, message: "Access Denied: Invalid or expired token." });
     }
 };
+
+export const verifyAdminToken = (req, res, next) => {
+    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'Access Denied: No token provided.' });
+    }
+
+    try {
+        const verified = jwt.verify(token, JWT_SECRET);
+        if (verified.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin access required.' });
+        }
+        req.user = verified;
+        next();
+    } catch {
+        res.status(401).json({ success: false, message: 'Access Denied: Invalid or expired token.' });
+    }
+};

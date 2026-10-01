@@ -128,7 +128,7 @@ export default function MemberProgress() {
 
     return (
         <>
-            <div className="max-w-6xl mx-auto space-y-6">
+            <div className="member-page max-w-6xl mx-auto space-y-6">
                 {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
                 {Object.values(progressAvailability).some((available) => !available) && (
                     <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
