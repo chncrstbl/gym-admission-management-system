@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Skeleton from '../Skeletons';
 import BaseModal from '../Modals/BaseModal';
 import api from '../../lib/api';
+import { ArrowLeft } from 'lucide-react';
 
 const formatDateTime = (value) => {
     if (!value) return 'Date unavailable';
@@ -19,6 +20,7 @@ export default function MemberDashboard() {
     const [dashboard, setDashboard] = useState(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+    const [isAnnouncementsModalOpen, setIsAnnouncementsModalOpen] = useState(false);
     const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
     useEffect(() => {
@@ -177,7 +179,7 @@ export default function MemberDashboard() {
                 </div>
 
                 {/* Main Content Grid: Recent Visits & Gym Announcements */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 items-start lg:grid-cols-3 gap-6">
                     
                     {/* Recent Check-In Visits (2 cols) */}
                     <div className="order-2 lg:order-1 lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
@@ -190,7 +192,7 @@ export default function MemberDashboard() {
                                 onClick={() => navigate('/member/visits')}
                                 className="text-xs font-bold text-blue-600 hover:text-blue-800 transition"
                             >
-                                View All
+                                View All 
                             </button>
                         </div>
 
@@ -223,15 +225,24 @@ export default function MemberDashboard() {
                     {/* Announcements & Gym Notice Card (1 col) */}
                     <div className="order-1 lg:order-2 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
                         <div>
-                            <div className="flex items-center gap-2 pb-4 border-b border-slate-100 mb-4">
-                                <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                                </svg>
-                                <h2 className="text-base font-extrabold text-[#041a5f]">Announcements</h2>
+                            <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-4">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <svg className="w-4 h-4 shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                    </svg>
+                                    <h2 className="text-base font-extrabold text-[#041a5f]">Announcements</h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAnnouncementsModalOpen(true)}
+                                    className="shrink-0 text-xs font-bold text-blue-600 hover:text-blue-800 transition"
+                                >
+                                    View All
+                                </button>
                             </div>
 
                             <div className="space-y-3.5">
-                                {announcements.length > 0 ? announcements.map((announcement) => (
+                                {announcements.length > 0 ? announcements.slice(0, 3).map((announcement) => (
                                     <article key={announcement.id} className="border-b border-slate-100 py-4 last:border-b-0">
                                         <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
                                             {announcement.category || 'Announcement'}
@@ -259,10 +270,56 @@ export default function MemberDashboard() {
             </div>
 
             <BaseModal
+                isOpen={isAnnouncementsModalOpen && !selectedAnnouncement}
+                onClose={() => setIsAnnouncementsModalOpen(false)}
+                title="All Announcements"
+                maxWidth="max-w-2xl"
+            >
+                <div className="max-h-[70vh] overflow-y-auto">
+                    {announcements.length > 0 ? announcements.map((announcement) => (
+                        <article key={announcement.id} className="border-b border-slate-100 py-4 last:border-b-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                                {announcement.category || 'Announcement'}
+                            </span>
+                            <h3 className="mt-0.5 text-xs font-bold text-slate-800">{announcement.title}</h3>
+                            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                                {summarizeAnnouncement(announcement.content)}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedAnnouncement(announcement);
+                                }}
+                                className="mt-2 text-[11px] font-bold text-blue-600 hover:text-blue-800"
+                            >
+                                Read announcement
+                            </button>
+                        </article>
+                    )) : (
+                        <p className="py-6 text-center text-sm text-slate-500">No announcements available.</p>
+                    )}
+                </div>
+            </BaseModal>
+
+            <BaseModal
                 isOpen={Boolean(selectedAnnouncement)}
-                onClose={() => setSelectedAnnouncement(null)}
+                onClose={() => {
+                    setSelectedAnnouncement(null);
+                    setIsAnnouncementsModalOpen(false);
+                }}
                 title={selectedAnnouncement?.title || 'Announcement'}
                 maxWidth="max-w-xl"
+                headerAction={isAnnouncementsModalOpen && (
+                    <button
+                        type="button"
+                        onClick={() => setSelectedAnnouncement(null)}
+                        aria-label="Back to all announcements"
+                        title="Back to all announcements"
+                        className="rounded-full p-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
+                    >
+                        <ArrowLeft size={18} />
+                    </button>
+                )}
             >
                 {selectedAnnouncement && (
                     <div className="space-y-4">

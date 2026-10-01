@@ -7,7 +7,7 @@ import RecentActivityModal from '../../components/Modals/RecentActivityModal';
 import BaseModal from '../../components/Modals/BaseModal';
 import { 
     Users, UserCheck, AlertTriangle, UserPlus, 
-    TrendingUp, AlertCircle, Activity, Clock, ArrowRight,
+    TrendingUp, AlertCircle, Activity, Clock, ArrowLeft, ArrowRight,
     Dumbbell, CheckCircle, Wrench, Send
 } from 'lucide-react';
 import { 
@@ -17,6 +17,7 @@ import {
 
 const Overview = () => {
     const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+    const [isAnnouncementsModalOpen, setIsAnnouncementsModalOpen] = useState(false);
     const [announcements, setAnnouncements] = useState([]);
     const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
     const [announcementForm, setAnnouncementForm] = useState({ title: '', category: 'Facility Notice', content: '' });
@@ -116,6 +117,10 @@ const Overview = () => {
         if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
         return date.toLocaleDateString();
     };
+    const summarizeAnnouncement = (content) => {
+        const text = content || 'No announcement details available.';
+        return text.length > 150 ? `${text.slice(0, 150).trim()}...` : text;
+    };
     const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'];
     
     const safeMemberStats = memberStats || { total: 0, active: 0, expiring: 0, newToday: 0 };
@@ -195,11 +200,18 @@ const Overview = () => {
 
                     {/* Member Announcements */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+                        <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-2">
                             <div>
                                 <h3 className="font-bold text-gray-800">Member Announcements</h3>
                                 <p className="text-xs text-gray-500">Publish updates to the member dashboard.</p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsAnnouncementsModalOpen(true)}
+                                className="shrink-0 text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                                View All <ArrowRight size={12} />
+                            </button>
                         </div>
                         <form onSubmit={handlePublishAnnouncement} className="space-y-3 p-5">
                             <input
@@ -323,10 +335,56 @@ const Overview = () => {
             />
 
             <BaseModal
+                isOpen={isAnnouncementsModalOpen && !selectedAnnouncement}
+                onClose={() => setIsAnnouncementsModalOpen(false)}
+                title="All Announcements"
+                maxWidth="max-w-2xl"
+            >
+                <div className="max-h-[70vh] overflow-y-auto">
+                    {announcements.length > 0 ? announcements.map((announcement) => (
+                        <article key={announcement.id} className="border-b border-gray-100 py-4 last:border-b-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                                {announcement.category || 'Announcement'}
+                            </span>
+                            <h3 className="mt-0.5 text-xs font-bold text-gray-800">{announcement.title}</h3>
+                            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
+                                {summarizeAnnouncement(announcement.content)}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedAnnouncement(announcement);
+                                }}
+                                className="mt-2 text-[11px] font-bold text-blue-600 hover:text-blue-800"
+                            >
+                                Read announcement
+                            </button>
+                        </article>
+                    )) : (
+                        <p className="py-6 text-center text-sm text-gray-400">No announcements yet.</p>
+                    )}
+                </div>
+            </BaseModal>
+
+            <BaseModal
                 isOpen={Boolean(selectedAnnouncement)}
-                onClose={() => setSelectedAnnouncement(null)}
+                onClose={() => {
+                    setSelectedAnnouncement(null);
+                    setIsAnnouncementsModalOpen(false);
+                }}
                 title={selectedAnnouncement?.title || 'Announcement'}
                 maxWidth="max-w-xl"
+                headerAction={isAnnouncementsModalOpen && (
+                    <button
+                        type="button"
+                        onClick={() => setSelectedAnnouncement(null)}
+                        aria-label="Back to all announcements"
+                        title="Back to all announcements"
+                        className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700"
+                    >
+                        <ArrowLeft size={18} />
+                    </button>
+                )}
             >
                 {selectedAnnouncement && (
                     <div className="space-y-4">

@@ -1,20 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
-import { X, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
+import BaseModal from './BaseModal';
 
 const RecentActivityModal = ({ isOpen, onClose }) => {
-    
-    useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => { document.body.style.overflow = 'unset'; };
-    }, [isOpen]);
-
-    const { data: activities = [], isLoading } = useQuery({
+    const { data: activities = [], isLoading, isError } = useQuery({
         queryKey: ['allActivity'],
         queryFn: async () => {
             const res = await api.get('/activity?limit=all');
@@ -42,24 +33,13 @@ const RecentActivityModal = ({ isOpen, onClose }) => {
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">Activity Log</h2>
-                        <p className="text-sm text-gray-500">Full history of system events</p>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-0">
+        <BaseModal isOpen={isOpen} onClose={onClose} title="Activity Log" maxWidth="max-w-2xl">
+            <div className="max-h-[70vh] overflow-y-auto">
                     {isLoading ? (
                         <div className="p-10 text-center text-gray-400">Loading history...</div>
+                    ) : isError ? (
+                        <div role="alert" className="p-10 text-center text-red-600">Activity history could not be loaded.</div>
                     ) : (
                         <div className="divide-y divide-gray-100">
                             {activities.length > 0 ? (
@@ -84,9 +64,8 @@ const RecentActivityModal = ({ isOpen, onClose }) => {
                             )}
                         </div>
                     )}
-                </div>
             </div>
-        </div>
+        </BaseModal>
     );
 };
 

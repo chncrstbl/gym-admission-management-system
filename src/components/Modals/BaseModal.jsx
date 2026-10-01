@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-const BaseModal = ({ isOpen, onClose, title, children, maxWidth = "max-w-lg" }) => {
+const BaseModal = ({ isOpen, onClose, title, children, maxWidth = "max-w-lg", headerAction }) => {
     
     useEffect(() => {
         if (isOpen) document.body.style.overflow = 'hidden';
@@ -17,12 +17,16 @@ const BaseModal = ({ isOpen, onClose, title, children, maxWidth = "max-w-lg" }) 
                 
                 <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
                     <h2 className="text-xl font-bold text-gray-800">{title}</h2>
-                    <button 
-                        onClick={onClose} 
-                        className="text-gray-400 hover:bg-gray-200 hover:text-gray-700 p-2 rounded-full transition-colors cursor-pointer"
-                    >
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {headerAction}
+                        <button 
+                            onClick={onClose} 
+                            className="text-gray-400 hover:bg-gray-200 hover:text-gray-700 p-2 rounded-full transition-colors cursor-pointer"
+                            aria-label="Close modal"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-6 overflow-y-auto">
