@@ -1,1 +1,77 @@
+.app-shell { background: var(--paper); }
+.app-sidebar {
+	background: var(--navy);
+	border-right: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: 10px 0 28px rgba(15, 23, 42, 0.08);
+}
+.app-content, .app-main { background: var(--paper); }
+.mobile-header {
+	background: rgba(255, 255, 255, 0.94);
+	border-bottom: 1px solid var(--line);
+	backdrop-filter: blur(12px);
+}
+.app-header { background: #ffffff; border-bottom: 1px solid var(--line); }
+.app-header-rule { height: 3px; background: var(--cobalt); }
+.app-sidebar .bg-cover { filter: saturate(0.7) contrast(1.05); }
+.app-sidebar nav { padding-left: 1rem; padding-right: 1rem; }
+.app-sidebar nav a {
+	border-left: 3px solid transparent;
+	border-radius: 0.35rem !important;
+	color: #9aa8b8;
+	letter-spacing: 0.01em;
+}
+.app-sidebar nav a:hover { background: rgba(255, 255, 255, 0.07); color: #ffffff; }
+.app-sidebar nav a.bg-blue-600 {
+	background: rgba(20, 89, 217, 0.18) !important;
+	border-left-color: #4f8df7;
+	box-shadow: none !important;
+	color: #ffffff;
+}
+
+.member-page {
+	color: var(--ink);
+}
+
+.member-page > .max-w-6xl,
+.member-page > .min-w-0 {
+	max-width: 72rem;
+}
+
+.member-page .bg-white {
+	border-color: var(--line);
+	box-shadow: 0 1px 2px rgba(16, 32, 51, 0.05);
+}
+
+.member-page .bg-slate-50,
+.member-page .bg-\[\#f8fafc\] {
+	background: #f7f9fb;
+}
+
+.member-page .shadow-xl,
+.member-page .shadow-2xl,
+.member-page .shadow-md,
+.member-page .shadow-lg {
+	box-shadow: 0 8px 20px rgba(16, 32, 51, 0.08) !important;
+}
+
+.member-page h1,
+.member-page h2,
+.member-page h3 {
+	letter-spacing: -0.01em;
+}
+
+.member-page input,
+.member-page select,
+.member-page textarea {
+	border-radius: 0.5rem !important;
+	border-color: var(--line);
+}
+
+.member-page .bg-\[\#061539\] {
+	background: #14243a;
+}
+
+.member-page .bg-\[\#f4f7fb\] {
+	background: var(--paper);
+}
 @import "tailwindcss";

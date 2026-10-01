@@ -1,15 +1,8 @@
-import bgImage from '../assets/images/banner.png';
-
 const Header = ({ title }) => {
     return (
-        <header 
-            className="h-20 w-full bg-gray-800 p-6 relative bg-cover bg-center"
-            style={{ backgroundImage: `url(${bgImage})` }}
-        >
-            <div className="absolute inset-0 bg-black/40"></div>
-
-
-            <h1 className="text-white text-2xl font-medium absolute -bottom-1 left-3 pl-5 py-5 drop-shadow-md">
+        <header className="app-header h-20 w-full p-6 relative">
+            <div className="app-header-rule absolute bottom-0 left-6 right-6"></div>
+            <h1 className="text-slate-900 text-2xl font-semibold absolute bottom-3 left-6">
                 {title}
             </h1>
         </header>

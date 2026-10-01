@@ -1,10 +1,10 @@
+import MemberVisits from "../../components/PageComponent/MemberVisitsPage";
 import PageLayout from "../../layouts/PageLayout";
-import OverviewPage from "../../components/PageComponent/AdminOverviewPage";
 
 const Overview = () => {
 return (
-    <PageLayout title={'Overview'}>
-        <OverviewPage />
+    <PageLayout>
+        <MemberVisits />
     </PageLayout>
     );
 };

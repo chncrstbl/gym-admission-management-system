@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
-import { Dumbbell, Wrench, AlertCircle, CheckCircle, Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dumbbell, Wrench, Wallet, CheckCircle, Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import StatsCard from '../Cards/StatsCard';
 import Button from '../Button';
 import Skeleton from '../Skeletons'; 
@@ -148,10 +148,10 @@ const EquipmentPage = () => {
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatsCard title="Total Items" value={stats.total} theme="blue" icon={Dumbbell} />
-                <StatsCard title="Top Condition" value={stats.excellent} theme="green" icon={CheckCircle} />
-                <StatsCard title="Needs Attention" value={stats.attention} theme="orange" icon={Wrench} />
-                <StatsCard title="Total Asset Value" value={`₱${stats.value.toLocaleString(undefined, {minimumFractionDigits: 2})}`} theme="purple" icon={AlertCircle} />
+                <StatsCard title="Total Equipment" value={stats.total} theme="blue" icon={Dumbbell} />
+                <StatsCard title="In Good Condition" value={stats.excellent} theme="green" icon={CheckCircle} />
+                <StatsCard title="Needs Attention" value={stats.attention} theme="red" icon={Wrench} />
+                <StatsCard title="Total Asset Value" value={`₱${stats.value.toLocaleString(undefined, {minimumFractionDigits: 2})}`} theme="purple" icon={Wallet} />
             </div>
 
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">

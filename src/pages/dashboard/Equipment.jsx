@@ -1,5 +1,5 @@
 import PageLayout from "../../layouts/PageLayout"
-import EquipmentPage from "../../components/PageComponent/EquipmentPage";
+import EquipmentPage from "../../components/PageComponent/AdminEquipmentPage";
 
 const Billing = () => {
 

@@ -1,1 +1,73 @@
 @import "tailwindcss";
+
+@theme {
+	--font-sans: "Aptos", "Segoe UI", sans-serif;
+}
+
+:root {
+	--ink: #102033;
+	--muted: #64748b;
+	--paper: #f5f7f9;
+	--line: #dbe2e8;
+	--navy: #101d2d;
+	--cobalt: #1459d9;
+	--amber: #d97706;
+}
+
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+}
+
+@layer base {
+	input[type="password"]::-ms-reveal,
+	input[type="password"]::-ms-clear {
+		display: none;
+	}
+
+	button:not(:disabled),
+	a[href]:not([aria-disabled="true"]),
+	input[type="button"]:not(:disabled),
+	input[type="submit"]:not(:disabled),
+	input[type="reset"]:not(:disabled),
+	input[type="checkbox"]:not(:disabled),
+	input[type="radio"]:not(:disabled),
+	input[type="range"]:not(:disabled),
+	select:not(:disabled),
+	summary,
+	[role="button"]:not([aria-disabled="true"]),
+	[tabindex]:not([tabindex="-1"]),
+	label:has(input[type="checkbox"]:not(:disabled)),
+	label:has(input[type="radio"]:not(:disabled)) {
+		cursor: pointer;
+	}
+
+	button:disabled,
+	input:disabled,
+	select:disabled,
+	[aria-disabled="true"] {
+		cursor: not-allowed;
+	}
+}
+
+@layer utilities {
+	.rounded-2xl { border-radius: 0.75rem !important; }
+	.rounded-xl { border-radius: 0.625rem !important; }
+	.rounded-lg { border-radius: 0.5rem !important; }
+	.bg-linear-to-r,
+	.bg-linear-to-br,
+	.bg-linear-to-tr {
+		background-image: none !important;
+		background-color: var(--cobalt) !important;
+	}
+}

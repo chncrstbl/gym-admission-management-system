@@ -1,5 +1,5 @@
-import MembersList from "../../components/PageComponent/MembersPage.jsx";
 import PageLayout from "../../layouts/PageLayout";
+import MembersList from "../../components/PageComponent/AdminMembersPage.jsx";
 
 const Members = () => {
   return(

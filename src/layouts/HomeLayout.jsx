@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import Sidebar from "../components/Sidebar";
+import AdminSidebar from "../components/AdminSidebar";
 import Banner from "../components/Banner";
 import SignOutModal from "../components/Modals/SignOutModal";
 
@@ -34,7 +34,7 @@ const HomeLayout = ({ title, children }) => {
                 md:translate-x-0 
             `}>
                 <div className="h-full relative">
-                    <Sidebar 
+                    <AdminSidebar
                         onClose={() => setIsSidebarOpen(false)} 
                         onSignOut={() => setIsSignOutOpen(true)}
                     />

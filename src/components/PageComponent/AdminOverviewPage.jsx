@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
 import StatsCard from "../../components/Cards/StatsCard";
 import Skeleton from "../../components/Skeletons"; 
 import RecentActivityModal from '../../components/Modals/RecentActivityModal';
+import BaseModal from '../../components/Modals/BaseModal';
 import { 
     Users, UserCheck, AlertTriangle, UserPlus, 
     TrendingUp, AlertCircle, Activity, Clock, ArrowRight,
-    Dumbbell, CheckCircle, Wrench
+    Dumbbell, CheckCircle, Wrench, Send
 } from 'lucide-react';
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -16,6 +17,32 @@ import {
 
 const Overview = () => {
     const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+    const [announcements, setAnnouncements] = useState([]);
+    const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+    const [announcementForm, setAnnouncementForm] = useState({ title: '', category: 'Facility Notice', content: '' });
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [announcementError, setAnnouncementError] = useState('');
+
+    useEffect(() => {
+        api.get('/announcements')
+            .then((response) => setAnnouncements(response.data?.data || []))
+            .catch(() => setAnnouncementError('Announcements could not be loaded.'));
+    }, []);
+
+    const handlePublishAnnouncement = async (event) => {
+        event.preventDefault();
+        setAnnouncementError('');
+        setIsPublishing(true);
+        try {
+            const response = await api.post('/announcements', announcementForm);
+            setAnnouncements((current) => [response.data.data, ...current]);
+            setAnnouncementForm({ title: '', category: 'Facility Notice', content: '' });
+        } catch (err) {
+            setAnnouncementError(err.response?.data?.message || 'Announcement could not be published.');
+        } finally {
+            setIsPublishing(false);
+        }
+    };
 
     const { data: memberStats, isLoading: loadingMembers } = useQuery({
         queryKey: ['memberStats'],
@@ -108,7 +135,7 @@ const Overview = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* --- LEFT COLUMN --- */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="order-2 space-y-8 lg:order-1 lg:col-span-2">
                     
                     {/* Financial Performance */}
                     <div>
@@ -164,7 +191,70 @@ const Overview = () => {
                 </div>
 
                 {/* --- RIGHT COLUMN --- */}
-                <div className="lg:col-span-1 space-y-6">
+                <div className="order-1 space-y-6 lg:order-2 lg:col-span-1">
+
+                    {/* Member Announcements */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+                            <div>
+                                <h3 className="font-bold text-gray-800">Member Announcements</h3>
+                                <p className="text-xs text-gray-500">Publish updates to the member dashboard.</p>
+                            </div>
+                        </div>
+                        <form onSubmit={handlePublishAnnouncement} className="space-y-3 p-5">
+                            <input
+                                type="text"
+                                required
+                                maxLength={255}
+                                placeholder="Announcement title"
+                                value={announcementForm.title}
+                                onChange={(event) => setAnnouncementForm({ ...announcementForm, title: event.target.value })}
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            />
+                            <select
+                                value={announcementForm.category}
+                                onChange={(event) => setAnnouncementForm({ ...announcementForm, category: event.target.value })}
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            >
+                                <option>Facility Notice</option>
+                                <option>Schedule</option>
+                                <option>Membership</option>
+                                <option>General</option>
+                            </select>
+                            <textarea
+                                required
+                                rows="3"
+                                placeholder="Write an update for members..."
+                                value={announcementForm.content}
+                                onChange={(event) => setAnnouncementForm({ ...announcementForm, content: event.target.value })}
+                                className="w-full resize-y rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            />
+                            {announcementError && <p role="alert" className="text-xs text-red-600">{announcementError}</p>}
+                            <button type="submit" disabled={isPublishing} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                                <Send size={15} />
+                                {isPublishing ? 'Publishing...' : 'Publish Announcement'}
+                            </button>
+                        </form>
+                        <div className="divide-y divide-gray-100 border-t border-gray-100">
+                            {announcements.slice(0, 3).map((announcement) => (
+                                <div key={announcement.id} className="p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">{announcement.category || 'Announcement'}</span>
+                                        <span className="text-[10px] text-gray-400">{new Date(announcement.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                    <h4 className="mt-1 text-sm font-semibold text-gray-800">{announcement.title}</h4>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedAnnouncement(announcement)}
+                                        className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-800"
+                                    >
+                                        Read full announcement
+                                    </button>
+                                </div>
+                            ))}
+                            {announcements.length === 0 && <p className="p-5 text-sm text-gray-400">No announcements yet.</p>}
+                        </div>
+                    </div>
                     
                     {/* Recent Activity */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-400px">
@@ -231,6 +321,31 @@ const Overview = () => {
                 isOpen={isActivityModalOpen} 
                 onClose={() => setIsActivityModalOpen(false)} 
             />
+
+            <BaseModal
+                isOpen={Boolean(selectedAnnouncement)}
+                onClose={() => setSelectedAnnouncement(null)}
+                title={selectedAnnouncement?.title || 'Announcement'}
+                maxWidth="max-w-xl"
+            >
+                {selectedAnnouncement && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                                {selectedAnnouncement.category || 'Announcement'}
+                            </span>
+                            {selectedAnnouncement.created_at && (
+                                <time className="text-xs text-gray-400">
+                                    {new Date(selectedAnnouncement.created_at).toLocaleDateString()}
+                                </time>
+                            )}
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm leading-7 text-gray-600">
+                            {selectedAnnouncement.content}
+                        </p>
+                    </div>
+                )}
+            </BaseModal>
         </div>
     );
 };
