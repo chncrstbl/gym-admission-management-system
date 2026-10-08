@@ -41,11 +41,8 @@ jobs:
   # Job 2: Backend Validation
   # -------------------------------------------------------------
   backend-ci:
-    name: Backend Dependency & Syntax Check
+    name: Backend Syntax Check
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
 
     steps:
       - name: Checkout Code
@@ -56,26 +53,13 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: './backend/package-lock.json'
+          cache-dependency-path: package-lock.json
 
       - name: Install Backend Dependencies
-        run: |
-          if [ -f package.json ]; then
-            npm ci || npm install
-          fi
+        run: npm ci
 
-      - name: Syntax & Server Bootstrap Check
-        run: |
-          if [ -f index.js ]; then
-            node --check index.js
-          fi
-        env:
-          NODE_ENV: test
-          DB_HOST: localhost
-          DB_USER: root
-          DB_PASSWORD: fake_password
-          DB_NAME: gamsdb
-          JWT_SECRET: ci_test_secret
+      - name: Check Backend Syntax
+        run: node --check backend/index.js
 
   deploy:
     name: Trigger Backend Deployment
