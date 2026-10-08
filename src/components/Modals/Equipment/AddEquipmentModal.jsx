@@ -44,7 +44,7 @@ const AddEquipmentModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
             try {
                 const compressedBase64 = await compressImage(file, 800, 0.7);
                 setFormData({ ...formData, image: compressedBase64 });
-            } catch (error) {
+            } catch {
                 toast.error("Failed to process image.");
             }
         }

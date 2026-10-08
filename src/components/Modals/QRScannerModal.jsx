@@ -21,8 +21,6 @@ const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
             (decodedText) => {
                 scanner.clear();
                 onScanSuccess(decodedText);
-            },
-            (errorMessage) => {
             }
         );
 

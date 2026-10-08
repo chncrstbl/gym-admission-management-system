@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect } from 'react';
 import BaseModal from '../BaseModal';
 import { Image as ImageIcon, Upload } from 'lucide-react';
@@ -56,7 +57,7 @@ const EditEquipmentModal = ({ isOpen, onClose, onSubmit, isSaving, initialData }
             try {
                 const compressedBase64 = await compressImage(file, 800, 0.7);
                 setFormData({ ...formData, image: compressedBase64 });
-            } catch (error) {
+            } catch {
                 toast.error("Failed to process image.");
             }
         }

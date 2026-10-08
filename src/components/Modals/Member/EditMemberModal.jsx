@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect } from 'react';
 import { Phone, X, User, Mail, CheckCircle, MapPin, Upload, HeartPulse, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import usePaymentPortal from '../../../hooks/PaymentPortal';
@@ -90,7 +91,7 @@ const EditMemberModal = ({ isOpen, onClose, onSubmit, isSaving, memberData }) =>
                 const compressedBase64 = await compressImage(file, 400, 0.7);
                 setFormData({ ...formData, image: compressedBase64 });
                 setImagePreview(compressedBase64);
-            } catch (error) {
+            } catch {
                 toast.error("Failed to process your image update.");
             }
         }

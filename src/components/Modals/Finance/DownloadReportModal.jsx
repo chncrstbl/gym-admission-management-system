@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { X, Download, Calendar } from 'lucide-react';
 import api from '../../../lib/api';
@@ -116,7 +117,7 @@ const handleDownload = async () => {
 
         toast.success("Downloaded!");
         onClose();
-    } catch (error) {
+    } catch {
         toast.error("Download failed.");
     } finally {
         setIsDownloading(false);

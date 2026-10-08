@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { X, Loader, ArrowRight, Check, ArrowLeft, User, CreditCard, Phone, MapPin, Upload, Mail, HeartPulse } from 'lucide-react';
 import usePaymentPortal from '../../../hooks/PaymentPortal';
@@ -74,7 +75,7 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
                 const compressedBase64 = await compressImage(file, 400, 0.7);
                 setFormData({ ...formData, image: compressedBase64 });
                 setImagePreview(compressedBase64);
-            } catch (error) {
+            } catch {
                 toast.error("Failed to process your image.");
             }
         }

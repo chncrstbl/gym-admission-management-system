@@ -55,7 +55,7 @@ export const recordPayment = async (req, res) => {
             await logActivity(`${rows[0].first_name} ${rows[0].last_name} paid ₱${amount} (Account Activated)`, 'payment', rows[0].image);
         }
         res.json({ success: true, message: "Payment recorded & Member Activated" });
-    } catch (err) {
+    } catch {
         res.status(500).json({ error: "Failed to record payment" });
     }
 };
@@ -82,7 +82,7 @@ export const deletePayment = async (req, res) => {
     try {
         await db.query('DELETE FROM payments WHERE id = ?', [id]);
         res.json({ message: "Payment deleted" });
-    } catch (err) {
+    } catch {
         res.status(500).json({ error: "Delete failed" });
     }
 };
