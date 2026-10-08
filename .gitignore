@@ -15,7 +15,6 @@ backend/.env
 dist
 dist-ssr
 *.local
-*.sql
 
 # Build outputs
 dist/
