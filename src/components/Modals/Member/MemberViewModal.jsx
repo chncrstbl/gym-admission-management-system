@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { X, Mail, Phone, MapPin, Calendar, CreditCard, ShieldCheck, HeartPulse, User, Download } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 const MemberViewModal = ({ isOpen, onClose, member }) => {
+    const qrRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) document.body.style.overflow = 'hidden';
@@ -16,16 +18,32 @@ const MemberViewModal = ({ isOpen, onClose, member }) => {
         return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
+    const qrValue = member.unique_id ? `GAMS-MBR-${member.unique_id}` : '';
+
     const handleDownloadQR = () => {
-        if (!member.qr_code) return;
-        
-        const link = document.createElement('a');
-        link.href = member.qr_code;
-        link.download = `${member.first_name}_${member.last_name}_Gym_Pass.png`;
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const svg = qrRef.current?.querySelector('svg');
+        if (!svg) return;
+
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+
+        img.onload = () => {
+            canvas.width = img.width + 40;
+            canvas.height = img.height + 40;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 20, 20);
+
+            const pngFile = canvas.toDataURL('image/png');
+            const downloadLink = document.createElement('a');
+            downloadLink.download = `${member.first_name}_${member.last_name}_Gym_Pass.png`;
+            downloadLink.href = pngFile;
+            downloadLink.click();
+        };
+
+        img.src = `data:image/svg+xml;base64,${btoa(svgData)}`;
     };
 
     return (
@@ -66,9 +84,16 @@ const MemberViewModal = ({ isOpen, onClose, member }) => {
 
                         {/* QR Code Container */}
                         <div className="bg-white p-3 rounded-xl shadow-inner flex flex-col items-center">
-                            {member.qr_code ? (
+                            {member.unique_id ? (
                                 <>
-                                    <img src={member.qr_code} alt="QR" className="w-36 h-36" />
+                                    <div ref={qrRef} className="p-1">
+                                        <QRCodeSVG 
+                                            value={qrValue} 
+                                            size={144} 
+                                            level="H" 
+                                            includeMargin={false} 
+                                        />
+                                    </div>
                                     <button 
                                         onClick={handleDownloadQR}
                                         className="mt-3 w-full py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold tracking-wide uppercase flex items-center justify-center gap-2 transition-colors cursor-pointer"
@@ -77,7 +102,9 @@ const MemberViewModal = ({ isOpen, onClose, member }) => {
                                     </button>
                                 </>
                             ) : (
-                                <div className="w-36 h-36 flex items-center justify-center bg-gray-100 text-gray-400 text-xs text-center border border-dashed border-gray-300 rounded-lg">No QR Generated</div>
+                                <div className="w-36 h-36 flex items-center justify-center bg-gray-100 text-gray-400 text-xs text-center border border-dashed border-gray-300 rounded-lg">
+                                    No QR Generated
+                                </div>
                             )}
                         </div>
                         <p className="mt-3 text-[10px] font-bold text-blue-300 uppercase tracking-[0.2em]">Scanner Access</p>

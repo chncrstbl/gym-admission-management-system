@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
-import { X, Loader, ArrowRight, Check, ArrowLeft, User, CreditCard, Phone, MapPin, Upload, Mail, HeartPulse } from 'lucide-react';
+import { X, Loader, ArrowRight, Check, ArrowLeft, User, CreditCard, Phone, MapPin, Upload, Mail, HeartPulse, Lock, Eye, EyeOff } from 'lucide-react';
 import usePaymentPortal from '../../../hooks/PaymentPortal';
 import toast from 'react-hot-toast';
 
@@ -41,9 +41,10 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
     const openPortal = usePaymentPortal();
     const [isProcessing, setIsProcessing] = useState(false);
     const [imagePreview, setImagePreview] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     const [formData, setFormData] = useState({
-        firstName: '', lastName: '', dob: '', gender: '', email: '', 
+        firstName: '', lastName: '', dob: '', gender: '', email: '', password: '',
         contactNumber: '', address: '', emergencyContactName: '', emergencyContactPhone: '',
         role: 'Standard', image: '', paymentMethod: 'Cash'
     });
@@ -55,8 +56,9 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
             document.body.style.overflow = 'unset';
             setStep(1);
             setImagePreview(null);
+            setShowPassword(false)
             setFormData({ 
-                firstName: '', lastName: '', dob: '', gender: '', email: '', 
+                firstName: '', lastName: '', dob: '', gender: '', email: '', password: '',
                 contactNumber: '', address: '', emergencyContactName: '', emergencyContactPhone: '',
                 role: 'Standard', image: '', paymentMethod: 'Cash' 
             });
@@ -83,8 +85,12 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
 
     const handleNext = (e) => {
         e.preventDefault();
-        if (!formData.firstName || !formData.lastName || !formData.contactNumber) {
+        if (!formData.firstName || !formData.lastName || !formData.email || !formData.contactNumber || !formData.password) {
             toast.error("Please fill in required fields.");
+            return;
+        }
+        if (formData.password.trim().length < 6) {
+            toast.error("Password must be at least 6 characters.");
             return;
         }
         setStep(2);
@@ -162,7 +168,7 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
                                     <div className="space-y-1">
                                         <label className="block text-sm font-semibold text-slate-700">Gender</label>
                                         <select value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                            <option value="">Select...</option>
+                                            <option value="" disabled hidden></option>
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
                                             <option value="Other">Other</option>
@@ -176,24 +182,46 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
                                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Contact & Location</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-semibold text-slate-700">Email Address</label>
+                                        <label className="block text-sm font-semibold text-slate-700">Email Address <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <Mail className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                                            <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="pl-10 w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                                            <input type="email" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="pl-10 w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
                                         </div>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-semibold text-slate-700">Mobile Number <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-semibold text-slate-700">Password <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                                            <input 
+                                                autoComplete='new-password'
+                                                type={showPassword ? 'text' : 'password'}
+                                                required
+                                                value={formData.password} 
+                                                onChange={(e) => setFormData({...formData, password: e.target.value})} 
+                                                className="pl-10 w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword((prev => !prev))}
+                                                tabIndex={-1}
+                                                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                                                >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>                                        
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-sm font-semibold text-slate-700">Contact Number <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <Phone className="absolute left-3 top-2.5 text-slate-400" size={18} />
                                             <input type="text" required maxLength={11} value={formData.contactNumber} onChange={(e) => setFormData({...formData, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 11)})} className="pl-10 w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
                                         </div>
                                     </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="block text-sm font-semibold text-slate-700">Home Address</label>
+                                    <div className="space-y-1">
+                                        <label className="block text-sm font-semibold text-slate-700">Home Address <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <MapPin className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                                            <input type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="pl-10 w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                                            <input type="text" required value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="pl-10 w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
                                         </div>
                                     </div>
                                 </div>
@@ -206,11 +234,11 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-semibold text-red-900">Contact Name</label>
+                                        <label className="block text-sm font-semibold text-red-900">Name</label>
                                         <input type="text" value={formData.emergencyContactName} onChange={(e) => setFormData({...formData, emergencyContactName: e.target.value})} className="w-full px-4 py-2 border border-red-200 rounded-lg outline-none focus:ring-2 focus:ring-red-400 bg-white" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-semibold text-red-900">Contact Phone</label>
+                                        <label className="block text-sm font-semibold text-red-900">Contact Number</label>
                                         <input type="text" maxLength={11} value={formData.emergencyContactPhone} onChange={(e) => setFormData({...formData, emergencyContactPhone: e.target.value.replace(/\D/g, '').slice(0, 11)})} className="w-full px-4 py-2 border border-red-200 rounded-lg outline-none focus:ring-2 focus:ring-red-400 bg-white" />
                                     </div>
                                 </div>

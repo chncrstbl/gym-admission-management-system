@@ -1,15 +1,16 @@
 import express from 'express';
 import { getMembers, addMember, getMemberStats, deleteMember, updateMember, getAnalytics, processQRCheckIn } from '../controllers/memberController.js';
+import { createMemberLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-router.get('/members', getMembers);
-router.post('/members', addMember);
-router.get('/member-stats', getMemberStats);
-router.delete('/members/:id', deleteMember);
-router.put('/members/:id', updateMember);
-router.get('/analytics', getAnalytics);
+router.get('/', getMembers);
+router.post('/', createMemberLimiter, addMember);
+router.put('/:id', updateMember);
+router.delete('/:id', deleteMember);
 
-router.post('/checkin/qr', processQRCheckIn);
+router.get('/analytics', getAnalytics);
+router.get('/stats', getMemberStats);
+router.post('/check-in', processQRCheckIn);
 
 export default router;

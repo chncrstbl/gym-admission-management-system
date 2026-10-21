@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 // src/pages/member/MemberProfile.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Download, Settings2, UserRound, Phone, CreditCard, ShieldCheck } from 'lucide-react';
@@ -12,6 +13,7 @@ export default function MemberProfile() {
     const [member, setMember] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [qrToken, setQrToken] = useState('');
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -31,6 +33,36 @@ export default function MemberProfile() {
 
         fetchProfile();
     }, []);
+
+    // Fetch dynamic, time-expiring cryptographically signed token
+    const fetchPassToken = useCallback(async (uniqueId) => {
+        if (!uniqueId) return;
+        try {
+            const res = await api.get('/portal/qr-token', {
+                params: { uniqueId }
+            });
+            if (res.data?.success && res.data.token) {
+                setQrToken(res.data.token);
+            } else {
+                setQrToken(`GAMS-MBR-${uniqueId}`);
+            }
+        } catch {
+            setQrToken(`GAMS-MBR-${uniqueId}`);
+        }
+    }, []);
+
+    // Auto-refresh dynamic token periodically (every 45s) to stay within the valid window
+    useEffect(() => {
+        if (!member?.unique_id) return;
+
+        fetchPassToken(member.unique_id);
+
+        const interval = setInterval(() => {
+            fetchPassToken(member.unique_id);
+        }, 45000);
+
+        return () => clearInterval(interval);
+    }, [member?.unique_id, fetchPassToken]);
 
     const handleDownloadQR = () => {
         const svg = qrRef.current?.querySelector('svg');
@@ -70,7 +102,7 @@ export default function MemberProfile() {
         );
     }
 
-    const qrValue = member?.unique_id ? `GAMS-MBR-${member.unique_id}` : '';
+    const qrValue = qrToken || (member?.unique_id ? `GAMS-MBR-${member.unique_id}` : '');
     const fullName = member?.first_name 
         ? `${member.first_name} ${member.last_name || ''}`.trim() 
         : 'Name unavailable';
@@ -173,7 +205,7 @@ export default function MemberProfile() {
                             </div>
 
                             <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-                                        <div className="border-b border-slate-100 py-3">
+                                <div className="border-b border-slate-100 py-3">
                                     <span className="block text-[11px] font-semibold text-slate-400">Date of Birth</span>
                                     <span className="block text-xs font-bold text-slate-800 mt-0.5">
                                         {member?.dob ? new Date(member.dob).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unavailable'}
