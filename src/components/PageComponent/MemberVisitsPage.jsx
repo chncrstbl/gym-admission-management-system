@@ -1,11 +1,43 @@
 // src/pages/member/MemberVisits.jsx
-import { useState, useEffect, useRef } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { useState, useEffect } from 'react';
 import Skeleton from '../Skeletons';
 import api from '../../lib/api';
 
+// Count consecutive calendar days with at least one gym check-in.
+const calculateCheckInStreak = (visitRecords, referenceDate = new Date()) => {
+    const toDayNumber = (value) => {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return null;
+
+        // UTC day numbers avoid daylight-saving changes affecting day comparisons.
+        return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+    };
+
+    const visitedDays = [...new Set(
+        visitRecords
+            .map((visit) => toDayNumber(visit.check_in_time))
+            .filter((day) => day !== null)
+    )].sort((a, b) => b - a);
+
+    if (visitedDays.length === 0) return 0;
+
+    const today = toDayNumber(referenceDate);
+    // The streak has ended if the most recent visit was more than one day ago.
+    if (today - visitedDays[0] > 1) return 0;
+
+    let streak = 1;
+    for (let index = 1; index < visitedDays.length; index += 1) {
+        if (visitedDays[index - 1] - visitedDays[index] === 1) {
+            streak += 1;
+        } else {
+            break;
+        }
+    }
+
+    return streak;
+};
+
 export default function MemberVisits() {
-    const qrRef = useRef(null);
     const [member, setMember] = useState(null);
     const [loading, setLoading] = useState(true);
     const [filterPeriod, setFilterPeriod] = useState('all');
@@ -38,35 +70,6 @@ export default function MemberVisits() {
         fetchMemberData();
     }, []);
 
-    const handleDownloadQR = () => {
-        const svg = qrRef.current?.querySelector('svg');
-        if (!svg) return;
-
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-
-        img.onload = () => {
-            canvas.width = img.width + 40;
-            canvas.height = img.height + 40;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 20, 20);
-
-            const pngFile = canvas.toDataURL('image/png');
-            const downloadLink = document.createElement('a');
-            downloadLink.download = `${member?.unique_id || 'member'}_QR_Pass.png`;
-            downloadLink.href = pngFile;
-            downloadLink.click();
-        };
-
-        img.src = `data:image/svg+xml;base64,${btoa(svgData)}`;
-    };
-
-    const qrValue = member?.unique_id ? `GAMS-MBR-${member.unique_id}` : '';
-    const status = member?.status || 'Unavailable';
-    const isMembershipActive = status.toLowerCase() === 'active';
     const currentVisit = currentTime
         ? visits.find((visit) => !visit.check_out_time && new Date(visit.check_in_time).toDateString() === new Date(currentTime).toDateString())
         : null;
@@ -85,17 +88,15 @@ export default function MemberVisits() {
         return hours ? `${hours}h ${remainingMinutes}m` : `${remainingMinutes}m`;
     };
     const averageDuration = stats.averageMinutes == null ? 'N/A' : formatDuration(stats.averageMinutes);
+    const currentStreak = calculateCheckInStreak(visits, currentTime ? new Date(currentTime) : new Date());
 
     if (loading) {
         return (
             <div role="status" aria-label="Loading attendance history" aria-busy="true" className="mx-auto max-w-6xl space-y-6">
                 <div className="space-y-2"><Skeleton className="h-7 w-64" /><Skeleton className="h-4 w-96 max-w-full" /></div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    <Skeleton className="h-96 w-full rounded-xl" />
-                    <div className="space-y-6 lg:col-span-2">
-                        <Skeleton className="h-52 w-full rounded-xl" />
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-28 w-full rounded-xl" />)}</div>
-                    </div>
+                <div className="space-y-6">
+                    <Skeleton className="h-52 w-full rounded-xl" />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-28 w-full rounded-xl" />)}</div>
                 </div>
                 <Skeleton className="h-80 w-full rounded-xl" />
             </div>
@@ -113,54 +114,15 @@ export default function MemberVisits() {
                             Facility Access & History
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-500">
-                        Access your digital entry QR pass and review your attendance records.
+                        Review your current check-in status and attendance history.
                     </p>
                 </div>
 
-                {/* Top Section: QR Pass Card & Current Facility Status */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Current check-in status and attendance metrics */}
+                <div className="space-y-6">
 
-                    {/* Digital Entry Pass (QR Code) */}
-                    <div className="bg-[#061539] rounded-2xl p-6 sm:p-7 text-white flex flex-col justify-between items-center shadow-md">
-                        <div className="w-full flex justify-between items-center pb-4 border-b border-blue-950/70">
-                            <div>
-                                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block">Digital Entry Pass</span>
-                                <h3 className="text-base font-extrabold text-white">QR Pass</h3>
-                            </div>
-                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${isMembershipActive ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30' : 'bg-rose-950 text-rose-300 border-rose-500/30'}`}>
-                                {status}
-                            </span>
-                        </div>
-
-                        {/* QR Code Container */}
-                        <div className="bg-white rounded-xl p-4 shadow-xl my-5 flex flex-col items-center">
-                            <div ref={qrRef} className="p-1">
-                                <QRCodeSVG includeMargin={false} level="H" size={160} value={qrValue} />
-                            </div>
-                            <span className="text-[11px] font-mono font-bold text-slate-800 mt-2">
-                                Member ID: {member?.unique_id || 'Unavailable'}
-                            </span>
-                        </div>
-
-                        <div className="w-full space-y-2">
-                            <button
-                                onClick={handleDownloadQR}
-                                disabled={!member?.unique_id}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Download QR Pass
-                            </button>
-                            <p className="text-[10px] text-blue-300 text-center tracking-wider uppercase font-semibold">
-                                Scan at a gym terminal for admission
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Real-Time Check-In Status & Attendance Metrics (2 Cols) */}
-                    <div className="lg:col-span-2 flex flex-col gap-6">
+                    {/* Real-time Check-In Status & Attendance Metrics */}
+                    <div className="flex flex-col gap-6">
                         
                         {/* Live Status Widget */}
                         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
@@ -216,9 +178,13 @@ export default function MemberVisits() {
                             </div>
 
                             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Average Duration</span>
-                                <div className="text-2xl font-black text-[#0078d7] mt-1">{attendanceAvailable && averageDuration !== 'N/A' ? averageDuration : '—'}</div>
-                                <span className="text-[11px] font-medium text-slate-500 mt-0.5 block">Per workout routine</span>
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Streak Tracker</span>
+                                <div className="text-2xl font-black text-[#0078d7] mt-1">
+                                    {attendanceAvailable ? `${currentStreak} ${currentStreak === 1 ? 'Day' : 'Days'}` : '—'}
+                                </div>
+                                <span className="text-[11px] font-medium text-slate-500 mt-0.5 block">
+                                    {!attendanceAvailable ? 'Attendance unavailable' : currentStreak > 0 ? 'Consecutive days with a check-in' : 'Check in today to start your streak'}
+                                </span>
                             </div>
                         </div>
 
