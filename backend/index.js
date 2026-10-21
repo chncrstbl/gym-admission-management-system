@@ -25,32 +25,44 @@ const allowedOrigins = [
     'https://gym-admission-management-system.vercel.app'
 ]
 
-app.disable('x-powered-by')
-app.use(helmet())
-
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
-
-app.use(express.json())
-app.use(cookieParser())
-
-app.set('trust proxy', 1)
-
-app.use('/api/login', globalApiLimiter)
-
-app.use(cors({
+// Handle CORS before other middleware so OPTIONS preflight responses include
+// the required headers even when the requested API route returns an error.
+const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true)
         } else {
             callback(new Error('Not allowed by CORS'))
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}))
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 204
+}
 
+app.use(cors(corsOptions))
+app.options(/.*/, cors(corsOptions))
+
+app.disable('x-powered-by')
+app.use(helmet())
+
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+app.use(cookieParser())
+
+app.set('trust proxy', 1)
+
+app.use('/api/login', globalApiLimiter)
+
+
+// Lightweight endpoint to verify that the deployed API service is responding.
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        service: 'gym-admission-management-system-api'
+    })
+})
 
 // Routes
 app.use('/api/members', memberRoutes)
