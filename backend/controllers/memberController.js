@@ -2,6 +2,7 @@
 import db from '../config/db.js'
 import { logActivity, getLocalMySQLDate } from '../utils/helpers.js'
 import bcrypt from 'bcrypt'
+import crypto from 'crypto'
 
 // HELPER: AUTO-EXPIRE MEMBERS
 // const updateExpiredMembers = async () => {
@@ -369,7 +370,7 @@ export const updateMember = async (req, res) => {
 
 // ROUTE 6: PROCESS GLOBAL QR SCANNER CHECK-IN
 export const processQRCheckIn = async (req, res) => {
-    const { qrData } = req.body
+    const qrData = req.body.qrData || req.body.qr_code || req.body.code || req.body.text;
 
     if (!qrData) {
         return res.status(400).json({ error: "No QR scan data received." })
@@ -380,7 +381,7 @@ export const processQRCheckIn = async (req, res) => {
         let uniqueId = null
 
         if(qrData.startsWith('GAMS:SIGN:')) {
-            const parts = qrData.split(';')
+            const parts = qrData.split(':')
             if (parts.length === 5) {
                 const [ , , extractedId, timestampStr, signature] = parts
                 const timestamp = parseInt(timestampStr, 10)
@@ -407,6 +408,10 @@ export const processQRCheckIn = async (req, res) => {
         uniqueId = qrData.replace('GAMS-MBR-', '')
     } else {
         uniqueId = qrData.trim()
+    }
+
+    if(!uniqueId) {
+        return res.status(400).json({ error: "Malformed QR token payload." })
     }
 
     const [members] = await db.query(
