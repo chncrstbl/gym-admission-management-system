@@ -384,13 +384,6 @@ export const processQRCheckIn = async (req, res) => {
             const parts = qrData.split(':')
             if (parts.length === 5) {
                 const [ , , extractedId, timestampStr, signature] = parts
-                const timestamp = parseInt(timestampStr, 10)
-
-                const now = Date.now()
-                if (Math.abs(now - timestamp) > 60 * 1000) {
-                    return res.status(403).json({ error: "QR Pass has expired. Please refresh the pass on your screen."})
-                }
-
                 const secret = process.env.JWT_SECRET || 'gams-qr-signing-key'
                 const expectedSignature = crypto
                     .createHmac('sha256', secret)
