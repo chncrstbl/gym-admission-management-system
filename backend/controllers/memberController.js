@@ -393,7 +393,7 @@ export const processQRCheckIn = async (req, res) => {
 
                 const secret = process.env.JWT_SECRET || 'gams-qr-signing-key'
                 const expectedSignature = crypto
-                    .createHmac('sha56', secret)
+                    .createHmac('sha256', secret)
                     .update(`${extractedId}:${timestampStr}`)
                     .digest('hex')
 
