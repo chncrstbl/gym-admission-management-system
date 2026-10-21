@@ -1,34 +1,45 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { X } from 'lucide-react';
 
 const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
-    
+    // Read the latest callback without restarting the camera scanner on every render.
+    const onScanSuccessRef = useRef(onScanSuccess);
+
+    useEffect(() => {
+        onScanSuccessRef.current = onScanSuccess;
+    }, [onScanSuccess]);
+
     useEffect(() => {
         if (!isOpen) return;
 
+        const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
 
+        // A camera can report the same QR code multiple times in quick succession.
+        let hasScanned = false;
 
-        const scanner = new Html5QrcodeScanner("qr-reader", { 
-            fps: 10, 
+        const scanner = new Html5QrcodeScanner("qr-reader", {
+            fps: 10,
             qrbox: { width: 250, height: 250 },
             rememberLastUsedCamera: true,
             supportedScanTypes: [0]
         });
 
-        scanner.render(
-            (decodedText) => {
-                scanner.clear();
-                onScanSuccess(decodedText);
-            }
-        );
+        scanner.render((decodedText) => {
+            if (hasScanned) return;
+            hasScanned = true;
+
+            // Stop the camera before submitting the decoded value.
+            scanner.clear().catch(error => console.error("Failed to clear scanner", error));
+            onScanSuccessRef.current(decodedText);
+        });
 
         return () => {
-            document.body.style.overflow = 'unset';
+            document.body.style.overflow = previousOverflow;
             scanner.clear().catch(error => console.error("Failed to clear scanner", error));
         };
-    }, [isOpen, onScanSuccess]);
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
