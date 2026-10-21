@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { QrCode, Loader2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -7,19 +7,22 @@ import QRScannerModal from './Modals/QRScannerModal';
 
 const GlobalQRScanner = () => {
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    // Prevent multiple detections from submitting the same check-in.
+    const checkInPendingRef = useRef(false);
     const queryClient = useQueryClient();
 
     const checkInMutation = useMutation({
         mutationFn: async (qrPayload) => {
-            const res = await api.post('/checkin/qr', { qrData: qrPayload });
+            const res = await api.post('/members/check-in', { qrData: qrPayload });
             return res.data;
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries(['members']);
-            queryClient.invalidateQueries(['allActivity']);
-            queryClient.invalidateQueries(['memberStats']);
+            queryClient.invalidateQueries({ queryKey: ['members'] });
+            queryClient.invalidateQueries({ queryKey: ['allActivity'] });
+            queryClient.invalidateQueries({ queryKey: ['recentActivity'] });
+            queryClient.invalidateQueries({ queryKey: ['memberStats'] });
             
-            toast.success(`Checked in: ${data.memberName}`, {
+            toast.success(`Checked in: ${data.memberName || 'Member'}`, {
                 icon: '✅',
                 style: { borderRadius: '10px', background: '#fff', color: '#333' },
             });
@@ -32,11 +35,17 @@ const GlobalQRScanner = () => {
         }
     });
 
-    const handleScanSuccess = (decodedText) => {
-        if (!checkInMutation.isPending) {
-            checkInMutation.mutate(decodedText);
-        }
-    };
+    // Keep this callback stable so the camera scanner does not restart on rerenders.
+    const handleScanSuccess = useCallback((decodedText) => {
+        if (checkInPendingRef.current) return;
+
+        checkInPendingRef.current = true;
+        checkInMutation.mutate(decodedText, {
+            onSettled: () => {
+                checkInPendingRef.current = false;
+            }
+        });
+    }, [checkInMutation.mutate]);
 
     return (
         <>
