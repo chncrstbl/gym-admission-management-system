@@ -196,7 +196,6 @@ export const getDynamicQRToken = async (req, res) => {
         return res.json({
             success: true,
             token,
-            expiresIn: 60,
             status: member.status
         })
     } catch (err) {
