@@ -25,14 +25,41 @@ export const getActivity = async (req, res) => {
 
 // ROUTE 2: CHECK IN
 export const checkInMember = async (req, res) => {
-    const { memberId, memberName, memberImage } = req.body;
-    if (!req.body || !memberId) return res.status(400).json({ error: "Missing member data" });
+    // Resolve the member's name and image from the database instead of trusting
+    // optional client fields that may be missing (and produce "undefined member").
+    const { memberId } = req.body || {};
+    if (!memberId) {
+        return res.status(400).json({ error: "Missing member ID" });
+    }
 
     try {
-        await logActivity(`${memberName} checked in at the gym`, 'check-in', memberImage);
-        res.json({ success: true, message: "Check-in recorded" });
+        const [rows] = await db.query(
+            "SELECT id, first_name, last_name, status, image FROM members WHERE id = ? AND status != 'Deleted' LIMIT 1",
+            [memberId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Member not found" });
+        }
+
+        const member = rows[0];
+        if (member.status === 'Inactive') {
+            return res.status(403).json({ error: "This membership is inactive" });
+        }
+
+        const memberName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
+        if (!memberName) {
+            return res.status(422).json({ error: "Member name is unavailable" });
+        }
+
+        await logActivity(`${memberName} checked in at the gym`, 'check-in', member.image);
+        return res.json({
+            success: true,
+            message: "Check-in recorded",
+            memberName
+        });
     } catch (err) {
         console.error("Check-in Error:", err);
-        res.status(500).json({ error: "Failed to process check-in" });
+        return res.status(500).json({ error: "Failed to process check-in" });
     }
 };
