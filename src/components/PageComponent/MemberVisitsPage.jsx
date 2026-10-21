@@ -38,7 +38,6 @@ const calculateCheckInStreak = (visitRecords, referenceDate = new Date()) => {
 };
 
 export default function MemberVisits() {
-    const [member, setMember] = useState(null);
     const [loading, setLoading] = useState(true);
     const [filterPeriod, setFilterPeriod] = useState('all');
     const [visits, setVisits] = useState([]);
@@ -50,11 +49,7 @@ export default function MemberVisits() {
     useEffect(() => {
         const fetchMemberData = async () => {
             try {
-                const [profileResponse, visitsResponse] = await Promise.all([
-                    api.get('/portal/profile'),
-                    api.get('/portal/visits')
-                ]);
-                setMember(profileResponse.data?.data || null);
+                const visitsResponse = await api.get('/portal/visits');
                 setVisits(visitsResponse.data?.data?.visits || []);
                 setStats(visitsResponse.data?.data?.stats || { totalVisits: 0, monthlyVisits: 0, previousMonthlyVisits: 0, averageMinutes: null });
                 setAttendanceAvailable(visitsResponse.data?.data?.attendanceAvailable !== false);
@@ -87,7 +82,6 @@ export default function MemberVisits() {
         const remainingMinutes = totalMinutes % 60;
         return hours ? `${hours}h ${remainingMinutes}m` : `${remainingMinutes}m`;
     };
-    const averageDuration = stats.averageMinutes == null ? 'N/A' : formatDuration(stats.averageMinutes);
     const currentStreak = calculateCheckInStreak(visits, currentTime ? new Date(currentTime) : new Date());
 
     if (loading) {
