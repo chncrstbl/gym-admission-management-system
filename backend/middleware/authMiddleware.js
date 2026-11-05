@@ -67,7 +67,7 @@ export const verifyAdminToken = async (req, res, next) => {
             'SELECT id, role FROM users WHERE id = ? LIMIT 1',
             [verified.id]
         );
-        if (users.length === 0 || users[0].role !== verified.role) {
+        if (users.length === 0 || String(users[0].role || '').trim().toLowerCase() !== verified.role) {
             return res.status(401).json({ success: false, message: 'Administrative account is no longer available.' });
         }
 
