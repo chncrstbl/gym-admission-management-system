@@ -1,5 +1,4 @@
 import db from '../config/db.js';
-import { logActivity } from '../utils/helpers.js';
 
 // ROUTE 1: GET ACTIVITY
 export const getActivity = async (req, res) => {
