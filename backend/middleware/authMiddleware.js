@@ -77,3 +77,16 @@ export const verifyAdminToken = async (req, res, next) => {
         return res.status(503).json({ success: false, message: 'Authorization service is temporarily unavailable.' });
     }
 };
+
+
+// Require a non-simple header on cookie-authenticated mutations so a hostile
+// website cannot trigger state changes using a plain HTML form.
+export const requireTrustedClientHeader = (req, res, next) => {
+    if (req.get('X-Requested-With') !== 'XMLHttpRequest') {
+        return res.status(403).json({
+            success: false,
+            message: 'Missing required application request header.'
+        });
+    }
+    return next();
+};
