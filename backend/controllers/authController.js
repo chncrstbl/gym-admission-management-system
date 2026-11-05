@@ -56,12 +56,29 @@ export const login = async (req, res) => {
         const isMember = members.length > 0
         const memberData = isMember ? members[0] : null
 
-        // Never infer administrator privileges from missing role data.
-        const assignedRole = typeof user.role === 'string' ? user.role.trim().toLowerCase() : ''
+        // Normalize the stored role. A matching member record is enough to safely
+        // repair an old member account, but never infer admin/staff from a missing role.
+        let assignedRole = typeof user.role === 'string' ? user.role.trim().toLowerCase() : ''
+        if (!['admin', 'staff', 'member'].includes(assignedRole) && memberData) {
+            try {
+                await db.query("UPDATE users SET role = 'member' WHERE id = ?", [user.id])
+                assignedRole = 'member'
+            } catch (roleRepairError) {
+                console.error('Could not repair the legacy member role. Apply backend/user-role-migration.sql:', roleRepairError)
+                if (['ER_BAD_FIELD_ERROR', 'ER_NO_SUCH_COLUMN'].includes(roleRepairError.code)) {
+                    return res.status(503).json({
+                        success: false,
+                        message: 'The account-role database migration is required. Apply backend/user-role-migration.sql to the production database.'
+                    })
+                }
+                throw roleRepairError
+            }
+        }
+
         if (!['admin', 'staff', 'member'].includes(assignedRole)) {
             return res.status(403).json({
                 success: false,
-                message: 'Access denied: this account has no valid assigned role.'
+                message: 'This account has no assigned admin/staff/member role. Apply backend/user-role-migration.sql and explicitly assign the intended administrator account.'
             })
         }
 
