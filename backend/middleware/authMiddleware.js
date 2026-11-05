@@ -35,9 +35,15 @@ export const verifyToken = async (req, res, next) => {
 
     try {
         // Re-check the database so deleted members cannot keep using a stale JWT.
+        // The token must still belong to a live user account assigned the member role.
         const [members] = await db.query(
-            "SELECT id FROM members WHERE id = ? AND status != 'Deleted' LIMIT 1",
-            [verified.id]
+            `SELECT m.id
+             FROM members m
+             INNER JOIN users u ON u.id = ?
+             WHERE m.id = ? AND m.status != 'Deleted'
+               AND LOWER(TRIM(u.role)) = 'member'
+             LIMIT 1`,
+            [verified.userId, verified.id]
         );
         if (members.length === 0) {
             return res.status(401).json({ success: false, message: 'Member account is no longer available.' });
