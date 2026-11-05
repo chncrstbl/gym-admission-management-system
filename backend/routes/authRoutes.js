@@ -5,7 +5,7 @@ import { loginLimiter } from '../middleware/rateLimiter.js'
 
 const router = express.Router()
 
-router.post('/login', loginLimiter, login)
+router.post('/login', requireTrustedClientHeader, loginLimiter, login)
 router.post('/logout', requireTrustedClientHeader, logout)
 
 router.get('/portal/qr-token', verifyToken, getDynamicQRToken)
