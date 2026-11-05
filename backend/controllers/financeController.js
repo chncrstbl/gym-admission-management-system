@@ -151,11 +151,15 @@ export const updatePaymentStatus = async (req, res) => {
         const payment = payments[0];
         const previousStatus = payment.status;
 
-        // Do not allow a completed payment to be silently changed back to unpaid.
-        if (['Paid', 'Completed'].includes(previousStatus) && status !== previousStatus &&
-            !(['Paid', 'Completed'].includes(status))) {
+        // Completed payments and voided invoices are terminal here. This avoids
+        // changing the ledger without applying the corresponding membership/refund logic.
+        if (['Paid', 'Completed'].includes(previousStatus) && status !== previousStatus) {
             await connection.rollback();
-            return res.status(409).json({ error: 'A completed payment cannot be downgraded or voided here. Use a separate verified refund/correction workflow.' });
+            return res.status(409).json({ error: 'A completed payment cannot be changed here. Use a separate verified refund/correction workflow.' });
+        }
+        if (previousStatus === 'Void' && status !== 'Void') {
+            await connection.rollback();
+            return res.status(409).json({ error: 'A voided invoice cannot be reactivated. Create a new invoice instead.' });
         }
 
         // Member portal renewal requests are pending until a staff member confirms receipt.
