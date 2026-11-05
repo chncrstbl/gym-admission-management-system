@@ -282,7 +282,7 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Select Payment Method</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {['Cash', 'GCash', 'PayMaya', 'Bank Transfer'].map((method) => (
+                                    {['Cash', 'GCash', 'Maya', 'Bank Transfer'].map((method) => (
                                         <button
                                             type="button" key={method}
                                             onClick={() => setFormData({...formData, paymentMethod: method})}
