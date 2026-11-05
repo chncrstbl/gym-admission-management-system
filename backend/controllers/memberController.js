@@ -497,15 +497,18 @@ export const processQRCheckIn = async (req, res) => {
             return res.status(403).json({ error: 'This membership is not active or has expired.' });
         }
 
-        // Prevent camera repeat callbacks from creating duplicate visits in quick succession.
-        const [recentCheckIns] = await db.query(
+        // A member cannot start another visit while an earlier visit remains open.
+        // Checkout is available from the authenticated member portal.
+        const [openVisits] = await db.query(
             `SELECT id FROM attendance
-             WHERE member_id = ? AND check_in_time >= DATE_SUB(NOW(), INTERVAL 60 SECOND)
+             WHERE member_id = ? AND check_out_time IS NULL
              ORDER BY check_in_time DESC LIMIT 1`,
             [member.id]
         );
-        if (recentCheckIns.length > 0) {
-            return res.status(409).json({ error: 'This member was checked in moments ago. Please wait before scanning again.' });
+        if (openVisits.length > 0) {
+            return res.status(409).json({
+                error: 'This member already has an open visit. Check out before starting another visit.'
+            });
         }
 
         await db.query(
