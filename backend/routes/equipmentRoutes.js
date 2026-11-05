@@ -1,6 +1,6 @@
 import express from 'express';
 import { getEquipment, addEquipment, updateEquipment, deleteEquipment } from '../controllers/equipmentController.js';
-import { verifyAdminToken } from '../middleware/authMiddleware.js';
+import { verifyAdminToken, requireTrustedClientHeader } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -9,8 +9,8 @@ router.use(verifyAdminToken);
 
 // Since index.js mounts this at '/api', we define the '/equipment' path here
 router.get('/equipment', getEquipment);
-router.post('/equipment', addEquipment);
-router.put('/equipment/:id', updateEquipment);
-router.delete('/equipment/:id', deleteEquipment);
+router.post('/equipment', requireTrustedClientHeader, addEquipment);
+router.put('/equipment/:id', requireTrustedClientHeader, updateEquipment);
+router.delete('/equipment/:id', requireTrustedClientHeader, deleteEquipment);
 
 export default router;
