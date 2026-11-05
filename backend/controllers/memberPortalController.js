@@ -51,14 +51,14 @@ export const renewMemberPlan = async (req, res) => {
 
         // Avoid creating multiple outstanding renewal requests for one member.
         const [pendingRequests] = await connection.query(
-            "SELECT id FROM payments WHERE member_id = ? AND status = 'Pending' AND ref_no LIKE 'REN-%' LIMIT 1",
+            "SELECT id FROM payments WHERE member_id = ? AND status IN ('Pending', 'Overdue', 'Unsuccessful') AND ref_no LIKE 'REN-%' LIMIT 1",
             [req.user.id]
         );
         if (pendingRequests.length > 0) {
             await connection.rollback();
             return res.status(409).json({
                 success: false,
-                message: 'You already have a pending renewal request. Please wait for staff to verify it.'
+                message: 'You already have an unresolved renewal request. Please wait for staff to verify or close it.'
             });
         }
 
