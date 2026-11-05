@@ -31,8 +31,10 @@ export const verifyAdminToken = (req, res, next) => {
 
     try {
         const verified = jwt.verify(token, JWT_SECRET);
-        if (verified.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Admin access required.' });
+        // Staff accounts are explicitly supported by the login flow and use the
+        // same operational dashboard. Reject missing/unknown roles by default.
+        if (!['admin', 'staff'].includes(verified.role)) {
+            return res.status(403).json({ success: false, message: 'Administrative access required.' });
         }
         req.user = verified;
         next();
