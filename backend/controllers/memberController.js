@@ -202,9 +202,13 @@ export const addMember = async (req, res) => {
             [newMemberId, price, methodToSave, refNo] 
         )
         await connection.commit()
-        
-        await logActivity(`${fullName} joined via ${methodToSave} (Ref: ${refNo})`, 'add', finalImage) 
-        
+
+        try {
+            await logActivity(`${fullName} joined via ${methodToSave} (Ref: ${refNo})`, 'add', finalImage)
+        } catch (logError) {
+            console.error('Member was created but activity logging failed:', logError)
+        }
+
         return res.status(201).json({
             id: newMemberId, 
             unique_id: memberUniqueID, 
@@ -273,7 +277,11 @@ export const deleteMember = async (req, res) => {
 
         await connection.commit()
 
-        await logActivity(`${member.first_name} ${member.last_name} was removed (Archived)`, 'delete', member.image)
+        try {
+            await logActivity(`${member.first_name} ${member.last_name} was removed (Archived)`, 'delete', member.image)
+        } catch (logError) {
+            console.error('Member was archived but activity logging failed:', logError)
+        }
         return res.json({ message: "Member deleted successfully" })
 
     } catch (err) {
@@ -380,10 +388,14 @@ export const updateMember = async (req, res) => {
 
         await connection.commit()
 
-        if (recordPayment) {
-            await logActivity(`Renewed ${firstName} ${lastName}'s plan (${role || 'Daily'}) - Paid ₱${price || 50}`, 'payment', image)
-        } else {
-            await logActivity(`Updated details for ${firstName} ${lastName}`, 'edit', image)
+        try {
+            if (recordPayment) {
+                await logActivity(`Renewed ${firstName} ${lastName}'s plan (${role || 'Daily'}) - Paid ₱${price || 50}`, 'payment', image)
+            } else {
+                await logActivity(`Updated details for ${firstName} ${lastName}`, 'edit', image)
+            }
+        } catch (logError) {
+            console.error('Member was updated but activity logging failed:', logError)
         }
 
         return res.json({ message: "Member updated successfully" })
