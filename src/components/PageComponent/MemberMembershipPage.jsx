@@ -433,7 +433,7 @@ export default function MemberMembership() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
-                            <h3 className="text-base font-extrabold text-[#041a5f]">Renewal Request Submitted</h3>
+                            <h3 className="text-base font-extrabold text-[#041a5f]">{['Paid', 'Completed'].includes(receiptModalData.status) ? 'Payment Verified' : 'Renewal Request Submitted'}</h3>
                             <p className="text-[11px] text-slate-400 font-mono mt-0.5">{receiptModalData.refNo}</p>
                         </div>
 
@@ -453,10 +453,10 @@ export default function MemberMembership() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-400">Membership Status</span>
-                                <span className="font-bold text-amber-600">PENDING VERIFICATION</span>
+                                <span className={`font-bold ${['Paid', 'Completed'].includes(receiptModalData.status) ? 'text-emerald-600' : 'text-amber-600'}`}>{['Paid', 'Completed'].includes(receiptModalData.status) ? 'VERIFIED' : 'PENDING VERIFICATION'}</span>
                             </div>
                             <div className="pt-2 border-t border-slate-100 flex justify-between items-baseline">
-                                <span className="font-bold text-slate-800">Requested Amount</span>
+                                <span className="font-bold text-slate-800">{['Paid', 'Completed'].includes(receiptModalData.status) ? 'Amount Paid' : 'Requested Amount'}</span>
                                 <span className="text-lg font-black text-[#01358a]">₱{receiptModalData.amount.toFixed(2)}</span>
                             </div>
                         </div>
