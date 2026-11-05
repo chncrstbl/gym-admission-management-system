@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import AdminSidebar from "../components/AdminSidebar";
 import Banner from "../components/Banner";
 import SignOutModal from "../components/Modals/SignOutModal";
+import api from '../lib/api';
 
 const HomeLayout = ({ title, children }) => {
     const navigate = useNavigate();
@@ -11,10 +12,19 @@ const HomeLayout = ({ title, children }) => {
     
     const [isSignOutOpen, setIsSignOutOpen] = useState(false);
 
-    const handleLogout = () => {
-        localStorage.removeItem('user');
-        setIsSignOutOpen(false);
-        navigate("/");
+    const handleLogout = async () => {
+        try {
+            // Clear the HttpOnly authentication cookie on the server.
+            await api.post('/logout');
+        } catch (err) {
+            // Always clear the local UI state even if the API is temporarily unavailable.
+            console.warn('Server logout request failed:', err);
+        } finally {
+            localStorage.removeItem('user');
+            localStorage.removeItem('userType');
+            setIsSignOutOpen(false);
+            navigate("/", { replace: true });
+        }
     };
 
     return (

@@ -45,34 +45,190 @@ export const getStats = async (req, res) => {
 
 // 3. RECORD NEW PAYMENT
 export const recordPayment = async (req, res) => {
-    const { memberId, amount, method } = req.body;
-    try {
-        await db.query('INSERT INTO payments (member_id, amount, payment_method, payment_date, status) VALUES (?, ?, ?, NOW(), "Completed")', [memberId, amount, method]);
-        await db.query("UPDATE members SET status = 'Active' WHERE id = ?", [memberId]);
+    const memberId = Number(req.body?.memberId);
+    const amount = Number(req.body?.amount);
+    const method = typeof req.body?.method === 'string' ? req.body.method.trim() : '';
 
-        const [rows] = await db.query('SELECT first_name, last_name, image FROM members WHERE id = ?', [memberId]);
-        if (rows.length > 0) {
-            await logActivity(`${rows[0].first_name} ${rows[0].last_name} paid ₱${amount} (Account Activated)`, 'payment', rows[0].image);
+    if (!Number.isSafeInteger(memberId) || memberId <= 0 ||
+        !Number.isFinite(amount) || amount <= 0 || amount > 1000000 ||
+        !method || method.length > 40) {
+        return res.status(400).json({ error: 'Provide a valid member, positive payment amount, and payment method.' });
+    }
+
+    let connection;
+    try {
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        const [members] = await connection.query(
+            `SELECT id, first_name, last_name, image, status
+             FROM members WHERE id = ? AND status != 'Deleted' LIMIT 1 FOR UPDATE`,
+            [memberId]
+        );
+        if (!members.length) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Member not found.' });
         }
-        res.json({ success: true, message: "Payment recorded & Member Activated" });
-    } catch {
-        res.status(500).json({ error: "Failed to record payment" });
+
+        const [result] = await connection.query(
+            'INSERT INTO payments (member_id, amount, payment_method, payment_date, status) VALUES (?, ?, ?, NOW(), "Completed")',
+            [memberId, amount, method]
+        );
+
+        // Only known membership-plan prices grant/extend membership access.
+        const plansByAmount = {
+            50: { role: 'Daily', days: 1 },
+            500: { role: 'Half Month', days: 15 },
+            1000: { role: 'Monthly', days: 30 }
+        };
+        const plan = plansByAmount[amount];
+        if (plan) {
+            const days = plan.days; // Internal constant, never provided by the request.
+            await connection.query(
+                `UPDATE members
+                 SET role = ?, status = 'Active',
+                     end_date = DATE_ADD(
+                         CASE WHEN end_date IS NULL OR end_date < NOW() THEN NOW() ELSE end_date END,
+                         INTERVAL ${days} DAY
+                     )
+                 WHERE id = ?`,
+                [plan.role, memberId]
+            );
+        }
+
+        await connection.commit();
+
+        const member = members[0];
+        try {
+            await logActivity(
+                `${member.first_name} ${member.last_name} payment recorded (Invoice #${result.insertId})`,
+                'payment',
+                member.image
+            );
+        } catch (logError) {
+            console.error('Payment recorded but activity logging failed:', logError);
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: plan ? 'Payment recorded and membership extended.' : 'Payment recorded.',
+            paymentId: result.insertId
+        });
+    } catch (err) {
+        if (connection) await connection.rollback();
+        console.error('Record payment error:', err);
+        return res.status(500).json({ error: 'Failed to record payment.' });
+    } finally {
+        connection?.release();
     }
 };
 
 // 4. UPDATE PAYMENT STATUS
 export const updatePaymentStatus = async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
+    const paymentId = Number(req.params.id);
+    const status = typeof req.body?.status === 'string' ? req.body.status.trim() : '';
+    const allowedStatuses = new Set(['Paid', 'Completed', 'Pending', 'Overdue', 'Void', 'Unsuccessful']);
+
+    if (!Number.isSafeInteger(paymentId) || paymentId <= 0 || !allowedStatuses.has(status)) {
+        return res.status(400).json({ error: 'Provide a valid invoice ID and payment status.' });
+    }
+
+    let connection;
+    let activityDetails = null;
     try {
-        await db.query('UPDATE payments SET status = ? WHERE id = ?', [status, id]);
-        const [rows] = await db.query(`SELECT p.id, m.first_name, m.last_name, m.image FROM payments p LEFT JOIN members m ON p.member_id = m.id WHERE p.id = ?`, [id]);
-        if (rows.length > 0) {
-            await logActivity(`Invoice #${id} marked as ${status}`, 'edit', rows[0].image);
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        const [payments] = await connection.query(
+            'SELECT id, member_id, amount, status, ref_no FROM payments WHERE id = ? LIMIT 1 FOR UPDATE',
+            [paymentId]
+        );
+        if (!payments.length) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Payment not found.' });
         }
-        res.json({ message: "Status updated" });
+
+        const payment = payments[0];
+        const previousStatus = payment.status;
+
+        // Completed payments and voided invoices are terminal here. This avoids
+        // changing the ledger without applying the corresponding membership/refund logic.
+        if (['Paid', 'Completed'].includes(previousStatus) && status !== previousStatus) {
+            await connection.rollback();
+            return res.status(409).json({ error: 'A completed payment cannot be changed here. Use a separate verified refund/correction workflow.' });
+        }
+        if (previousStatus === 'Void' && status !== 'Void') {
+            await connection.rollback();
+            return res.status(409).json({ error: 'A voided invoice cannot be reactivated. Create a new invoice instead.' });
+        }
+
+        // Member portal renewal requests are pending until a staff member confirms receipt.
+        // The reference contains a server-generated plan code; the posted amount is never trusted.
+        let renewalPlan = null;
+        if (['Pending', 'Overdue', 'Unsuccessful'].includes(previousStatus) && ['Paid', 'Completed'].includes(status) &&
+            typeof payment.ref_no === 'string' && payment.ref_no.startsWith('REN-')) {
+            const match = /^REN-([DHM])-([A-F0-9]{8})$/i.exec(payment.ref_no);
+            const plansByCode = {
+                D: { role: 'Daily', days: 1, amount: 50 },
+                H: { role: 'Half Month', days: 15, amount: 500 },
+                M: { role: 'Monthly', days: 30, amount: 1000 }
+            };
+            renewalPlan = match ? plansByCode[match[1].toUpperCase()] : null;
+
+            if (!renewalPlan || Number(payment.amount) !== renewalPlan.amount) {
+                await connection.rollback();
+                return res.status(409).json({ error: 'Renewal invoice plan or amount is invalid; payment status was not changed.' });
+            }
+
+            const [members] = await connection.query(
+                "SELECT id, first_name, last_name, image FROM members WHERE id = ? AND status != 'Deleted' LIMIT 1 FOR UPDATE",
+                [payment.member_id]
+            );
+            if (!members.length) {
+                await connection.rollback();
+                return res.status(404).json({ error: 'The member for this renewal no longer exists.' });
+            }
+
+            const days = renewalPlan.days; // Internal plan constant, not user-controlled input.
+            await connection.query(
+                `UPDATE members
+                 SET role = ?, status = 'Active',
+                     end_date = DATE_ADD(
+                         CASE WHEN end_date IS NULL OR end_date < NOW() THEN NOW() ELSE end_date END,
+                         INTERVAL ${days} DAY
+                     )
+                 WHERE id = ?`,
+                [renewalPlan.role, payment.member_id]
+            );
+            activityDetails = {
+                member: members[0],
+                description: `${members[0].first_name} ${members[0].last_name} renewal verified (${renewalPlan.role})`
+            };
+        }
+
+        await connection.query('UPDATE payments SET status = ? WHERE id = ?', [status, paymentId]);
+        await connection.commit();
+
+        try {
+            const description = activityDetails
+                ? activityDetails.description
+                : `Invoice #${paymentId} marked as ${status}`;
+            await logActivity(description, activityDetails ? 'payment' : 'edit', activityDetails?.member?.image || null);
+        } catch (logError) {
+            console.error('Payment status updated but activity logging failed:', logError);
+        }
+
+        return res.json({
+            success: true,
+            message: renewalPlan ? 'Payment verified and membership renewed.' : 'Payment status updated.',
+            membershipActivated: Boolean(renewalPlan)
+        });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (connection) await connection.rollback();
+        console.error('Update payment status error:', err);
+        return res.status(500).json({ error: 'Could not update payment status.' });
+    } finally {
+        connection?.release();
     }
 };
 

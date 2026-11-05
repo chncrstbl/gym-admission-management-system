@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import Skeleton from '../Skeletons';
 import api from '../../lib/api';
-import usePaymentPortal from '../../hooks/PaymentPortal';
 
 const plans = [
     { id: 'daily', name: 'Daily Pass', price: 50, duration: '1 Day', description: 'Full day access to gym facilities, lockers, and free weights.', features: ['Full equipment access', 'Locker use for the day', 'Standard shower access'] },
@@ -11,7 +10,6 @@ const plans = [
 ];
 
 export default function MemberMembership() {
-    const openPaymentPortal = usePaymentPortal();
     const [member, setMember] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -63,27 +61,26 @@ export default function MemberMembership() {
         setIsProcessingPayment(true);
 
         try {
-            const methodLabel = paymentMethods.find((method) => method.id === paymentMethod)?.label;
-            const paymentCompleted = await openPaymentPortal(methodLabel);
-            if (!paymentCompleted) {
-                setError('The demo payment was not completed. Reopen checkout and try again.');
-                return;
-            }
+            // The frontend must never claim that payment was completed. The API
+            // creates a Pending request until an authorized staff member verifies it.
+            const response = await api.post('/portal/membership/renew', {
+                planId: selectedPlan,
+                paymentMethod
+            });
+            const transaction = response.data.data;
+            const selectedPlanDetails = plans.find((item) => item.id === selectedPlan);
 
-            const response = await api.post('/portal/membership/renew', { planId: selectedPlan, paymentMethod });
-            const newTransaction = response.data.data;
-            const plan = plans.find((item) => item.id === selectedPlan);
-            setMember((current) => ({
-                ...current,
-                status: 'Active',
-                role: plan.id === 'half_month' ? 'Half Month' : plan.id === 'daily' ? 'Daily' : 'Monthly',
-                end_date: newTransaction.endDate
-            }));
-            setHistory((current) => [{ ...newTransaction, date: newTransaction.date }, ...current]);
+            const request = {
+                ...transaction,
+                plan: selectedPlanDetails?.name || transaction.plan,
+                status: 'Pending'
+            };
+
+            setHistory((current) => [request, ...current]);
             setIsPaymentModalOpen(false);
-            setReceiptModalData(newTransaction);
+            setReceiptModalData(request);
         } catch (err) {
-            setError(err.response?.data?.message || 'Renewal could not be saved.');
+            setError(err.response?.data?.message || 'Renewal request could not be submitted.');
         } finally {
             setIsProcessingPayment(false);
         }
@@ -304,8 +301,8 @@ export default function MemberMembership() {
                                         <td className="py-3.5 px-3 font-extrabold text-slate-900">₱{item.amount.toFixed(2)}</td>
                                         <td className="py-3.5 px-3 text-slate-600">{item.method}</td>
                                         <td className="py-3.5 px-3">
-                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${['Paid', 'Completed'].includes(item.status) ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : item.status === 'Pending' ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-600 bg-slate-50 border-slate-200'}`}>
+                                                <span className={`w-1 h-1 rounded-full ${['Paid', 'Completed'].includes(item.status) ? 'bg-emerald-500' : item.status === 'Pending' ? 'bg-amber-500' : 'bg-slate-400'}`}></span>
                                                 {item.status}
                                             </span>
                                         </td>
@@ -327,14 +324,14 @@ export default function MemberMembership() {
 
             </div>
 
-            {/* Demo payment confirmation; no external payment is collected. */}
+            {/* Renewal request receipt: staff must verify payment before membership changes. */}
             {isPaymentModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-5">
                             <div>
-                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Sandbox Payment Gateway</span>
-                                <h3 className="text-lg font-extrabold text-[#041a5f]">Renew Membership</h3>
+                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Membership Renewal</span>
+                                <h3 className="text-lg font-extrabold text-[#041a5f]">Submit Renewal Request</h3>
                             </div>
                             <button
                                 onClick={() => !isProcessingPayment && setIsPaymentModalOpen(false)}
@@ -366,7 +363,7 @@ export default function MemberMembership() {
                                 </select>
                             </div>
 
-                            {/* Simulated Payment Methods */}
+                            {/* Select how the payment will be made; this does not verify payment. */}
                             <div>
                                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                                     Payment Method
@@ -391,8 +388,8 @@ export default function MemberMembership() {
 
                             {/* Notice Banner */}
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 leading-relaxed">
-                                <span className="font-bold block">Demo payment:</span>
-                                No real charge is made. Confirming records a demo payment and updates your membership in the database.
+                                <span className="font-bold block">Payment verification required:</span>
+                                This submits a renewal request only. No payment is processed here, and your membership will not change until staff verifies the payment.
                             </div>
 
                             {/* Buttons */}
@@ -416,7 +413,7 @@ export default function MemberMembership() {
                                             <span>Processing...</span>
                                         </>
                                     ) : (
-                                        <span>Confirm Payment</span>
+                                        <span>Submit Request</span>
                                     )}
                                 </button>
                             </div>
@@ -436,7 +433,7 @@ export default function MemberMembership() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
-                            <h3 className="text-base font-extrabold text-[#041a5f]">Payment Confirmed</h3>
+                            <h3 className="text-base font-extrabold text-[#041a5f]">{['Paid', 'Completed'].includes(receiptModalData.status) ? 'Payment Verified' : 'Renewal Request Submitted'}</h3>
                             <p className="text-[11px] text-slate-400 font-mono mt-0.5">{receiptModalData.refNo}</p>
                         </div>
 
@@ -451,15 +448,15 @@ export default function MemberMembership() {
                                 <span className="font-semibold text-slate-800">{receiptModalData.plan}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Payment Gateway</span>
+                                <span className="text-slate-400">Payment Method</span>
                                 <span className="font-semibold text-slate-800">{receiptModalData.method}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-400">Membership Status</span>
-                                <span className="font-bold text-emerald-600">ACTIVE</span>
+                                <span className={`font-bold ${['Paid', 'Completed'].includes(receiptModalData.status) ? 'text-emerald-600' : 'text-amber-600'}`}>{['Paid', 'Completed'].includes(receiptModalData.status) ? 'VERIFIED' : 'PENDING VERIFICATION'}</span>
                             </div>
                             <div className="pt-2 border-t border-slate-100 flex justify-between items-baseline">
-                                <span className="font-bold text-slate-800">Total Amount Paid</span>
+                                <span className="font-bold text-slate-800">{['Paid', 'Completed'].includes(receiptModalData.status) ? 'Amount Paid' : 'Requested Amount'}</span>
                                 <span className="text-lg font-black text-[#01358a]">₱{receiptModalData.amount.toFixed(2)}</span>
                             </div>
                         </div>
@@ -469,7 +466,7 @@ export default function MemberMembership() {
                             onClick={() => setReceiptModalData(null)}
                             className="w-full mt-2 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition cursor-pointer"
                         >
-                            Done & Close Receipt
+                            Done & Close
                         </button>
                     </div>
                 </div>

@@ -6,6 +6,7 @@ import AdminSidebar from "../components/AdminSidebar";
 import MemberSidebar from "../components/MemberSidebar";
 import Header from "../components/Header";
 import SignOutModal from "../components/Modals/SignOutModal";
+import api from '../lib/api';
 
 const PageLayout = ({ title, sidebar, children }) => {
     const navigate = useNavigate();
@@ -15,11 +16,19 @@ const PageLayout = ({ title, sidebar, children }) => {
     const userType = localStorage.getItem('userType');
     const SidebarComponent = sidebar || (userType === 'member' ? MemberSidebar : AdminSidebar);
 
-    const handleLogout = () => {
-        localStorage.removeItem('user');
-        localStorage.removeItem('userType');
-        setIsSignOutOpen(false);
-        navigate("/", { replace: true });
+    const handleLogout = async () => {
+        try {
+            // Clear the HttpOnly authentication cookie on the server.
+            await api.post('/logout');
+        } catch (err) {
+            // Always clear the local UI state even if the API is temporarily unavailable.
+            console.warn('Server logout request failed:', err);
+        } finally {
+            localStorage.removeItem('user');
+            localStorage.removeItem('userType');
+            setIsSignOutOpen(false);
+            navigate("/", { replace: true });
+        }
     };
 
     return (

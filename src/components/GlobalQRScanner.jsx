@@ -35,17 +35,18 @@ const GlobalQRScanner = () => {
         }
     });
 
-    // Keep this callback stable so the camera scanner does not restart on rerenders.
+    // Keep the mutation function reference stable for the camera success callback.
+    const mutateCheckIn = checkInMutation.mutate;
     const handleScanSuccess = useCallback((decodedText) => {
         if (checkInPendingRef.current) return;
 
         checkInPendingRef.current = true;
-        checkInMutation.mutate(decodedText, {
+        mutateCheckIn(decodedText, {
             onSettled: () => {
                 checkInPendingRef.current = false;
             }
         });
-    }, [checkInMutation.mutate]);
+    }, [mutateCheckIn]);
 
     return (
         <>

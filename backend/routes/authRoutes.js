@@ -1,11 +1,12 @@
 import express from 'express'
-import { login, getMemberProfile, getMemberDashboard, getDynamicQRToken } from '../controllers/authController.js'
-import { verifyToken } from '../middleware/authMiddleware.js'
+import { login, logout, getMemberProfile, getMemberDashboard, getDynamicQRToken } from '../controllers/authController.js'
+import { verifyToken, requireTrustedClientHeader } from '../middleware/authMiddleware.js'
 import { loginLimiter } from '../middleware/rateLimiter.js'
 
 const router = express.Router()
 
-router.post('/login', loginLimiter, login)
+router.post('/login', requireTrustedClientHeader, loginLimiter, login)
+router.post('/logout', requireTrustedClientHeader, logout)
 
 router.get('/portal/qr-token', verifyToken, getDynamicQRToken)
 

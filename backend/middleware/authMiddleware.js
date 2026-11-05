@@ -1,42 +1,99 @@
-import jwt from 'jsonwebtoken';
 import process from 'node:process';
+import jwt from 'jsonwebtoken';
+import db from '../config/db.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+// The application validates JWT_SECRET at startup. Never use a known fallback secret.
+const JWT_SECRET = process.env.JWT_SECRET;
 
-export const verifyToken = (req, res, next) => {
-    const token = req.cookies?.token || req.cookies?.memberToken || req.headers.authorization?.split(' ')[1];
+const readToken = (req) =>
+    req.cookies?.token ||
+    req.cookies?.memberToken ||
+    req.headers.authorization?.split(' ')[1];
 
+const verifyJwt = (req, res) => {
+    const token = readToken(req);
     if (!token) {
-        return res.status(401).json({ success: false, message: "Access Denied: No token provided." });
+        res.status(401).json({ success: false, message: 'Access denied: no token provided.' });
+        return null;
     }
 
     try {
-        const verified = jwt.verify(token, JWT_SECRET);
-        if ((verified.userType || verified.role) !== 'member') {
-            return res.status(403).json({ success: false, message: "Access Denied: Member portal only." });
-        }
-        req.user = verified;
-        next();
+        return jwt.verify(token, JWT_SECRET);
     } catch {
-        res.status(401).json({ success: false, message: "Access Denied: Invalid or expired token." });
+        res.status(401).json({ success: false, message: 'Access denied: invalid or expired token.' });
+        return null;
     }
 };
 
-export const verifyAdminToken = (req, res, next) => {
-    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+export const verifyToken = async (req, res, next) => {
+    const verified = verifyJwt(req, res);
+    if (!verified) return;
 
-    if (!token) {
-        return res.status(401).json({ success: false, message: 'Access Denied: No token provided.' });
+    if ((verified.userType || verified.role) !== 'member') {
+        return res.status(403).json({ success: false, message: 'Member portal access required.' });
     }
 
     try {
-        const verified = jwt.verify(token, JWT_SECRET);
-        if (verified.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Admin access required.' });
+        // Re-check the database so deleted members cannot keep using a stale JWT.
+        // The token must still belong to a live user account assigned the member role.
+        const [members] = await db.query(
+            `SELECT m.id
+             FROM members m
+             INNER JOIN users u ON u.id = ?
+             WHERE m.id = ? AND m.status != 'Deleted'
+               AND LOWER(TRIM(u.role)) = 'member'
+             LIMIT 1`,
+            [verified.userId, verified.id]
+        );
+        if (members.length === 0) {
+            return res.status(401).json({ success: false, message: 'Member account is no longer available.' });
         }
+
         req.user = verified;
-        next();
-    } catch {
-        res.status(401).json({ success: false, message: 'Access Denied: Invalid or expired token.' });
+        return next();
+    } catch (err) {
+        console.error('Member authorization database check failed:', err);
+        return res.status(503).json({ success: false, message: 'Authorization service is temporarily unavailable.' });
     }
+};
+
+export const verifyAdminToken = async (req, res, next) => {
+    const verified = verifyJwt(req, res);
+    if (!verified) return;
+
+    // Staff accounts are explicitly supported by the login flow and use the
+    // operational dashboard. Every other role is denied.
+    if (!['admin', 'staff'].includes(verified.role)) {
+        return res.status(403).json({ success: false, message: 'Administrative access required.' });
+    }
+
+    try {
+        // A valid signed token is not enough if the account was deleted or demoted.
+        const [users] = await db.query(
+            'SELECT id, role FROM users WHERE id = ? LIMIT 1',
+            [verified.id]
+        );
+        if (users.length === 0 || String(users[0].role || '').trim().toLowerCase() !== verified.role) {
+            return res.status(401).json({ success: false, message: 'Administrative account is no longer available.' });
+        }
+
+        req.user = verified;
+        return next();
+    } catch (err) {
+        console.error('Admin authorization database check failed:', err);
+        return res.status(503).json({ success: false, message: 'Authorization service is temporarily unavailable.' });
+    }
+};
+
+
+// Require a non-simple header on cookie-authenticated mutations so a hostile
+// website cannot trigger state changes using a plain HTML form.
+export const requireTrustedClientHeader = (req, res, next) => {
+    if (req.get('X-Requested-With') !== 'XMLHttpRequest') {
+        return res.status(403).json({
+            success: false,
+            message: 'Missing required application request header.'
+        });
+    }
+    return next();
 };

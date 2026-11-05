@@ -14,6 +14,7 @@ export default function MemberProfile() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [qrToken, setQrToken] = useState('');
+    const [qrError, setQrError] = useState('');
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -34,35 +35,30 @@ export default function MemberProfile() {
         fetchProfile();
     }, []);
 
-    // Fetch dynamic, time-expiring cryptographically signed token
-    const fetchPassToken = useCallback(async (uniqueId) => {
-        if (!uniqueId) return;
+    // Fetch a server-signed permanent pass. Never fall back to an unsigned member ID.
+    const fetchPassToken = useCallback(async () => {
         try {
-            const res = await api.get('/portal/qr-token', {
-                params: { uniqueId }
-            });
-            if (res.data?.success && res.data.token) {
+            const res = await api.get('/portal/qr-token');
+            if (res.data?.success && typeof res.data.token === 'string' && res.data.token) {
                 setQrToken(res.data.token);
+                setQrError('');
             } else {
-                setQrToken(`GAMS-MBR-${uniqueId}`);
+                setQrToken('');
+                setQrError('A signed QR pass is not available right now.');
             }
-        } catch {
-            setQrToken(`GAMS-MBR-${uniqueId}`);
+        } catch (err) {
+            setQrToken('');
+            setQrError(err.response?.data?.message || 'Could not generate a secure QR pass. Please try again later.');
         }
     }, []);
 
-    // Auto-refresh dynamic token periodically (every 45s) to stay within the valid window
     useEffect(() => {
-        if (!member?.unique_id) return;
-
-        fetchPassToken(member.unique_id);
-
-        const interval = setInterval(() => {
-            fetchPassToken(member.unique_id);
-        }, 45000);
-
-        return () => clearInterval(interval);
-    }, [member?.unique_id, fetchPassToken]);
+        if (member?.unique_id && member?.status?.toLowerCase() === 'active') {
+            fetchPassToken();
+        } else {
+            setQrToken('');
+        }
+    }, [member?.unique_id, member?.status, fetchPassToken]);
 
     const handleDownloadQR = () => {
         const svg = qrRef.current?.querySelector('svg');
@@ -102,7 +98,7 @@ export default function MemberProfile() {
         );
     }
 
-    const qrValue = qrToken || (member?.unique_id ? `GAMS-MBR-${member.unique_id}` : '');
+    const qrValue = qrToken;
     const fullName = member?.first_name 
         ? `${member.first_name} ${member.last_name || ''}`.trim() 
         : 'Name unavailable';
@@ -157,14 +153,20 @@ export default function MemberProfile() {
                             <span className="text-[10px] font-semibold text-blue-700">QR</span>
                         </div>
                         <div className="flex justify-center">
-                        <div ref={qrRef} className="p-1">
-                            <QRCodeSVG includeMargin={false} level="H" size={145} value={qrValue} />
-                        </div>
+                            {qrValue ? (
+                                <div ref={qrRef} className="p-1">
+                                    <QRCodeSVG includeMargin={false} level="H" size={145} value={qrValue} />
+                                </div>
+                            ) : (
+                                <div className="flex min-h-36 w-full items-center justify-center rounded-lg border border-dashed border-slate-300 p-4 text-center text-xs text-slate-500">
+                                    {qrError || 'A QR pass is only available for active memberships.'}
+                                </div>
+                            )}
                         </div>
 
                         <button
                             onClick={handleDownloadQR}
-                            disabled={!member.unique_id}
+                            disabled={!qrValue || !isMembershipActive}
                             className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-transparent py-2.5 text-xs font-bold text-[#01358a] transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Download size={15} aria-hidden="true" />

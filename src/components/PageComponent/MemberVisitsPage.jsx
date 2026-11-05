@@ -45,6 +45,7 @@ export default function MemberVisits() {
     const [error, setError] = useState('');
     const [currentTime, setCurrentTime] = useState(null);
     const [attendanceAvailable, setAttendanceAvailable] = useState(true);
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
 
     useEffect(() => {
         const fetchMemberData = async () => {
@@ -65,9 +66,25 @@ export default function MemberVisits() {
         fetchMemberData();
     }, []);
 
-    const currentVisit = currentTime
-        ? visits.find((visit) => !visit.check_out_time && new Date(visit.check_in_time).toDateString() === new Date(currentTime).toDateString())
-        : null;
+    // Show any open session, including an older session that still needs checkout.
+    const currentVisit = visits.find((visit) => !visit.check_out_time) || null;
+
+    const handleCheckOut = async () => {
+        setError('');
+        setIsCheckingOut(true);
+        try {
+            await api.post('/portal/visits/check-out');
+            const response = await api.get('/portal/visits');
+            setVisits(response.data?.data?.visits || []);
+            setStats(response.data?.data?.stats || stats);
+            setAttendanceAvailable(response.data?.data?.attendanceAvailable !== false);
+            setCurrentTime(Date.now());
+        } catch (err) {
+            setError(err.response?.data?.message || 'Could not check out of the gym.');
+        } finally {
+            setIsCheckingOut(false);
+        }
+    };
     const filteredVisits = visits.filter((visit) => {
         if (filterPeriod === 'all') return true;
         const visitDate = new Date(visit.check_in_time);
@@ -132,9 +149,21 @@ export default function MemberVisits() {
                                         </h3>
                                     </div>
                                 </div>
-                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg self-start sm:self-auto">
-                                    {!attendanceAvailable ? 'Not configured' : currentVisit ? new Date(currentVisit.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No active session'}
-                                </span>
+                                <div className="flex items-center gap-2 self-start sm:self-auto">
+                                    <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
+                                        {!attendanceAvailable ? 'Not configured' : currentVisit ? `Checked in ${new Date(currentVisit.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'No active session'}
+                                    </span>
+                                    {attendanceAvailable && currentVisit && (
+                                        <button
+                                            type="button"
+                                            onClick={handleCheckOut}
+                                            disabled={isCheckingOut}
+                                            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {isCheckingOut ? 'Checking out…' : 'Check out'}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">

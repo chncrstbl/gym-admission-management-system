@@ -14,8 +14,8 @@ if (!process.env.JWT_SECRET) {
 export const login = async (req, res) => {
     const { email, password } = req.body
 
-    if (!email || !password) {
-        return res.status(400).json({ success: false, message: 'Please provide email and password.' })
+    if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
+        return res.status(400).json({ success: false, message: 'Please provide a valid email and password.' })
     }
 
     try {
@@ -34,26 +34,35 @@ export const login = async (req, res) => {
         const user = users[0]
 
         // 2. Verify password with bcrypt
-        const isMatch = await bcrypt.compare(password, user.password)
+        const isMatch = await bcrypt.compare(password.trim(), user.password)
         if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid email or password.' })
         }
 
         // 3. Check for matching active membership profile
+        // Existing non-deleted members may log in to review or renew an expired plan.
+        // QR issuance and the check-in handler independently enforce active, unexpired membership.
         const [members] = await db.query(
-            'SELECT * FROM members WHERE email = ? AND status != ?',
-            [cleanEmail, 'Deleted']
+            "SELECT * FROM members WHERE email = ? AND status != 'Deleted' LIMIT 1",
+            [cleanEmail]
         )
 
         const isMember = members.length > 0
         const memberData = isMember ? members[0] : null
 
-        // Determine role: prioritize DB role column, fallback safely based on profile presence
-        const assignedRole = user.role || (isMember ? 'member' : 'admin')
+        // Never infer administrator privileges from missing role data.
+        const assignedRole = typeof user.role === 'string' ? user.role.trim().toLowerCase() : ''
+        if (!['admin', 'staff', 'member'].includes(assignedRole)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied: this account has no valid assigned role.'
+            })
+        }
 
         let tokenPayload = null
         let responseUser = null
-        let userType = assignedRole
+        // Staff use the operational dashboard, but their signed JWT retains role=staff.
+        let userType = assignedRole === 'staff' ? 'admin' : assignedRole
 
         if (assignedRole === 'admin' || assignedRole === 'staff') {
             tokenPayload = {
@@ -103,11 +112,13 @@ export const login = async (req, res) => {
             { expiresIn: '1d' }
         )
 
-        const isProduction = process.env.NODE_ENV === 'production'
+        const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true'
         res.cookie('token', token, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax'
+            sameSite: isProduction ? 'none' : 'lax',
+            path: '/',
+            maxAge: 24 * 60 * 60 * 1000
         })
 
         return res.json({
@@ -121,6 +132,17 @@ export const login = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal server error during login.' })
     }
 }
+
+export const logout = (req, res) => {
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/'
+    });
+    return res.json({ success: true, message: 'Signed out successfully.' });
+};
 
 // Secure Token-Isolated Member Profile Retrieval Route
 export const getMemberProfile = async (req, res) => {
@@ -155,54 +177,61 @@ export const getMemberProfile = async (req, res) => {
 
 export const getDynamicQRToken = async (req, res) => {
     try {
-        // 1. Extract identifier from query or all common JWT payload structures
-        const queryUniqueId = req.query.uniqueId
-        const memberId = req.user?.id || req.user?.userId || req.userId || req.user?.memberId || (typeof req.user === 'number' || typeof req.user === 'string' ? req.user : null)
-        const memberEmail = req.user?.email || req.user?.user?.email || req.email
-
-        let rows = []
-
-        // 2. Query member profile
-        if (queryUniqueId) {
-            [rows] = await db.query(
-                "SELECT unique_id, status FROM members WHERE unique_id = ? AND status != 'Deleted' LIMIT 1",
-                [queryUniqueId]
-            )
-        } else if (memberId || memberEmail) {
-            [rows] = await db.query(
-                "SELECT unique_id, status FROM members WHERE id = ? OR email = ? LIMIT 1",
-                [memberId || null, memberEmail || null]
-            )
-        } else {
-            return res.status(401).json({ success: false, message: 'Unauthorized session.' })
+        // The member ID comes only from the verified JWT, never from client-selected IDs.
+        const memberId = req.user?.id;
+        if (!memberId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized session.' });
         }
+
+        const [rows] = await db.query(
+            `SELECT unique_id, status,
+                    (end_date IS NOT NULL AND end_date < NOW()) AS is_expired
+             FROM members
+             WHERE id = ? AND status != 'Deleted'
+             LIMIT 1`,
+            [memberId]
+        );
 
         if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Member profile not found.' })
+            return res.status(404).json({ success: false, message: 'Member profile not found.' });
         }
 
-        const member = rows[0]
-        const timestamp = Date.now()
-        const secret = process.env.JWT_SECRET || 'gams-qr-signing-key'
+        const member = rows[0];
 
-        // 3. Generate HMAC-SHA256 signature
+        // The query parameter is optional for compatibility, but cannot select another member.
+        if (req.query.uniqueId && req.query.uniqueId !== member.unique_id) {
+            return res.status(403).json({ success: false, message: 'You can only request your own QR pass.' });
+        }
+
+        if (member.status !== 'Active' || Number(member.is_expired) === 1) {
+            return res.status(403).json({ success: false, message: 'An active membership is required for a QR pass.' });
+        }
+
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            console.error('JWT_SECRET is missing; refusing to sign a QR pass.');
+            return res.status(503).json({ success: false, message: 'QR pass service is not configured.' });
+        }
+
+        // This pass intentionally has no time expiry; the HMAC must still verify at check-in.
+        const timestamp = Date.now();
         const signature = crypto
             .createHmac('sha256', secret)
             .update(`${member.unique_id}:${timestamp}`)
-            .digest('hex')
+            .digest('hex');
 
-        const token = `GAMS:SIGN:${member.unique_id}:${timestamp}:${signature}`
+        const token = `GAMS:SIGN:${member.unique_id}:${timestamp}:${signature}`;
 
         return res.json({
             success: true,
             token,
             status: member.status
-        })
+        });
     } catch (err) {
-        console.error('Failed generating dynamic QR token:', err)
-        return res.status(500).json({ success: false, message: 'Server error generating QR pass.' })
+        console.error('Failed generating QR pass:', err);
+        return res.status(500).json({ success: false, message: 'Server error generating QR pass.' });
     }
-}
+};
 
 export const getMemberDashboard = async (req, res) => {
     try {
