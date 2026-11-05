@@ -40,8 +40,10 @@ export const login = async (req, res) => {
         }
 
         // 3. Check for matching active membership profile
+        // Existing non-deleted members may log in to review or renew an expired plan.
+        // QR issuance and the check-in handler independently enforce active, unexpired membership.
         const [members] = await db.query(
-            "SELECT * FROM members WHERE email = ? AND status = 'Active' AND (end_date IS NULL OR end_date >= NOW()) LIMIT 1",
+            "SELECT * FROM members WHERE email = ? AND status != 'Deleted' LIMIT 1",
             [cleanEmail]
         )
 
