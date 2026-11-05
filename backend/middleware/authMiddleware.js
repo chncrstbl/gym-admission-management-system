@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken';
-import process from 'node:process';
 import db from '../config/db.js';
 
 // The application validates JWT_SECRET at startup. Never use a known fallback secret.
