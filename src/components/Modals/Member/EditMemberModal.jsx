@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { Phone, X, User, Mail, CheckCircle, MapPin, Upload, HeartPulse, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
-import usePaymentPortal from '../../../hooks/PaymentPortal';
 
 const compressImage = (file, maxWidth = 400, quality = 0.7) => {
     return new Promise((resolve, reject) => {
@@ -40,7 +39,6 @@ const formatDateForInput = (dateString) => {
 };
 
 const EditMemberModal = ({ isOpen, onClose, onSubmit, isSaving, memberData }) => {
-    const openPaymentPortal = usePaymentPortal(); 
     const [imagePreview, setImagePreview] = useState(null);
 
     const [formData, setFormData] = useState({
@@ -99,14 +97,24 @@ const EditMemberModal = ({ isOpen, onClose, onSubmit, isSaving, memberData }) =>
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        let dataToSubmit = { ...formData };
+        const dataToSubmit = { ...formData };
 
         if (formData.recordPayment) {
-            await openPaymentPortal(formData.paymentMethod);
-            dataToSubmit.status = 'Active'; 
+            if (!['Daily', 'Half Month', 'Monthly'].includes(formData.role)) {
+                toast.error('Choose a valid membership plan before recording a renewal payment.');
+                return;
+            }
+
+            // This administrator action records a payment that has already been verified.
+            dataToSubmit.status = 'Active';
         }
 
-        onSubmit(dataToSubmit);
+        try {
+            await onSubmit(dataToSubmit);
+        } catch (error) {
+            console.error('Member update failed:', error);
+            toast.error(error.response?.data?.error || 'Could not save member changes.');
+        }
     };
 
     if (!isOpen) return null;
@@ -221,16 +229,28 @@ const EditMemberModal = ({ isOpen, onClose, onSubmit, isSaving, memberData }) =>
                             <input 
                                 type="checkbox"
                                 checked={formData.recordPayment}
-                                onChange={(e) => setFormData({...formData, recordPayment: e.target.checked})}
+                                onChange={(e) => setFormData({...formData, recordPayment: e.target.checked, role: e.target.checked && !['Daily', 'Half Month', 'Monthly'].includes(formData.role) ? 'Daily' : formData.role})}
                                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
                             />
-                            <span className="text-sm font-bold text-blue-900">Process Renewal Payment?</span>
+                            <span className="text-sm font-bold text-blue-900">Record Verified Renewal Payment</span>
                         </label>
 
                         {formData.recordPayment && (
-                            <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
+                            <div className="mt-4 animate-in slide-in-from-top-2 duration-200 space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-bold uppercase tracking-wide text-slate-600">Renewal Plan</label>
+                                    <select
+                                        value={formData.role}
+                                        onChange={(e) => setFormData({...formData, role: e.target.value})}
+                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
+                                    >
+                                        <option value="Daily">Daily — ₱50 (1 day)</option>
+                                        <option value="Half Month">Half Month — ₱500 (15 days)</option>
+                                        <option value="Monthly">Monthly — ₱1,000 (30 days)</option>
+                                    </select>
+                                </div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {['Cash', 'GCash', 'PayMaya', 'Bank Transfer'].map(method => (
+                                    {['Cash', 'GCash', 'Maya', 'Bank Transfer'].map(method => (
                                         <button 
                                             type="button" key={method}
                                             onClick={() => setFormData({...formData, paymentMethod: method})}
@@ -246,6 +266,12 @@ const EditMemberModal = ({ isOpen, onClose, onSubmit, isSaving, memberData }) =>
                         )}
                     </div>
 
+                    {formData.recordPayment && (
+                        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
+                            Only use this option after the cash payment or external transfer has actually been verified. This administrator action records the payment and renews the membership; it does not contact a payment provider.
+                        </p>
+                    )}
+
                     {/* Actions */}
                     <div className="flex gap-3 pt-2">
                         <button type="button" onClick={onClose} className="flex-1 px-4 py-3 border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
@@ -257,7 +283,7 @@ const EditMemberModal = ({ isOpen, onClose, onSubmit, isSaving, memberData }) =>
                                 formData.recordPayment ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
                             }`}
                         >
-                            {isSaving ? 'Processing...' : (formData.recordPayment ? 'Pay & Renew' : 'Save Changes')}
+                            {isSaving ? 'Processing...' : (formData.recordPayment ? 'Record Payment & Renew' : 'Save Changes')}
                         </button>
                     </div>
                 </form>
