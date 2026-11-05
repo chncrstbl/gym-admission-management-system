@@ -97,6 +97,21 @@ export const addMember = async (req, res) => {
     if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
         return res.status(400).json({ error: "Enter a valid email address." })
     }
+
+    // Normalize legacy PayMaya labels and reject unknown payment methods.
+    const methodAliases = {
+        'Cash': 'Cash',
+        'GCash': 'GCash',
+        'Maya': 'Maya',
+        'PayMaya': 'Maya',
+        'Bank Transfer': 'Bank Transfer'
+    }
+    const methodToSave = methodAliases[typeof paymentMethod === 'string' ? paymentMethod.trim() : ''] ||
+        (paymentMethod ? null : 'Cash')
+    if (!methodToSave) {
+        return res.status(400).json({ error: "Choose a valid payment method." })
+    }
+
     const fullName = `${firstName.trim()} ${lastName.trim()}`
 
     // 2. Uniqueness check across users and members
@@ -182,7 +197,6 @@ export const addMember = async (req, res) => {
         const newMemberId = result.insertId;
         
         // 6. Payment insertion
-        const methodToSave = paymentMethod || 'Cash' 
         await connection.query(
             "INSERT INTO payments (member_id, amount, payment_method, payment_date, status, ref_no) VALUES (?, ?, ?, NOW(), 'Completed', ?)",
             [newMemberId, price, methodToSave, refNo] 
