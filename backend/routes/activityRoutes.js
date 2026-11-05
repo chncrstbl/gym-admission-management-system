@@ -4,9 +4,8 @@ import { verifyAdminToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// These routes mutate or disclose operational data and must never be public.
-router.use(verifyAdminToken);
-
-router.get('/activity', getActivity);
+// Scope authorization to this endpoint because the router is mounted at /api.
+// A router-wide guard here would reject unrelated routes such as /login.
+router.get('/activity', verifyAdminToken, getActivity);
 
 export default router;
