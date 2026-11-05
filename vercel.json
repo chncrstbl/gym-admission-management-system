@@ -1,8 +1,12 @@
 {
-"rewrites": [
+  "rewrites": [
     {
-        "source": "/(.*)",
-        "destination": "/index.html"
-        }
-    ]
+      "source": "/api/:path*",
+      "destination": "https://gym-admission-management-system.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

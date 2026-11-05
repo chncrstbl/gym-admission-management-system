@@ -1,9 +1,12 @@
 import axios from 'axios';
 
 const api = axios.create({
+    // Keep local development pointed at the local API, but use Vercel's
+    // same-origin /api proxy in production so browser session cookies work
+    // even when third-party cookies are restricted.
     baseURL: import.meta.env.MODE === 'development'
         ? 'http://localhost:5000/api'
-        : 'https://gym-admission-management-system.onrender.com/api',
+        : '/api',
     withCredentials: true,
     // Custom header forces browser preflight and helps block simple-form CSRF requests.
     headers: {
