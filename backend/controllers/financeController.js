@@ -152,16 +152,16 @@ export const updatePaymentStatus = async (req, res) => {
         const previousStatus = payment.status;
 
         // Do not allow a completed payment to be silently changed back to unpaid.
-        if (['Paid', 'Completed'].includes(previousStatus) &&
-            !['Paid', 'Completed', 'Void'].includes(status)) {
+        if (['Paid', 'Completed'].includes(previousStatus) && status !== previousStatus &&
+            !(['Paid', 'Completed'].includes(status))) {
             await connection.rollback();
-            return res.status(409).json({ error: 'A completed payment cannot be downgraded to an unpaid status. Void it if a correction is required.' });
+            return res.status(409).json({ error: 'A completed payment cannot be downgraded or voided here. Use a separate verified refund/correction workflow.' });
         }
 
         // Member portal renewal requests are pending until a staff member confirms receipt.
         // The reference contains a server-generated plan code; the posted amount is never trusted.
         let renewalPlan = null;
-        if (previousStatus === 'Pending' && ['Paid', 'Completed'].includes(status) &&
+        if (['Pending', 'Overdue', 'Unsuccessful'].includes(previousStatus) && ['Paid', 'Completed'].includes(status) &&
             typeof payment.ref_no === 'string' && payment.ref_no.startsWith('REN-')) {
             const match = /^REN-([DHM])-([A-F0-9]{8})$/i.exec(payment.ref_no);
             const plansByCode = {
