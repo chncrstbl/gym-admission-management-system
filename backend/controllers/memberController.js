@@ -462,7 +462,7 @@ export const getMemberQRPass = async (req, res) => {
     }
 };
 
-// ROUTE 7: PROCESS GLOBAL QR SCANNER CHECK-IN
+// PROCESS GLOBAL QR SCANNER CHECK-IN
 export const processQRCheckIn = async (req, res) => {
     const qrData = req.body?.qrData ?? req.body?.qr_code ?? req.body?.code ?? req.body?.text;
 
@@ -470,82 +470,95 @@ export const processQRCheckIn = async (req, res) => {
         return res.status(400).json({ error: 'A valid signed QR pass is required.' });
     }
 
+    const token = qrData.trim();
+    const parts = token.split(':');
+
+    // Only signed admission passes are accepted. Raw IDs and legacy unsigned QR codes are rejected.
+    if (parts.length !== 5 || parts[0] !== 'GAMS' || parts[1] !== 'SIGN') {
+        return res.status(400).json({
+            error: 'This QR code is not a signed admission pass. Generate or download a new QR pass.'
+        });
+    }
+
+    const [, , uniqueId, timestampStr, signature] = parts;
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(uniqueId) ||
+        !/^\d{10,16}$/.test(timestampStr) ||
+        !/^[a-f0-9]{64}$/i.test(signature)) {
+        return res.status(400).json({ error: 'Malformed QR pass.' });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        console.error('JWT_SECRET is missing; refusing to verify a QR pass.');
+        return res.status(503).json({ error: 'QR pass service is not configured.' });
+    }
+
+    // QR passes intentionally do not expire; valid HMAC verification is always required.
+    const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(`${uniqueId}:${timestampStr}`)
+        .digest();
+    const suppliedSignature = Buffer.from(signature, 'hex');
+
+    // Constant-time comparison avoids timing-based signature guessing.
+    if (suppliedSignature.length !== expectedSignature.length ||
+        !crypto.timingSafeEqual(suppliedSignature, expectedSignature)) {
+        return res.status(403).json({ error: 'Invalid QR pass signature.' });
+    }
+
+    let connection;
+    let transactionStarted = false;
     try {
-        const token = qrData.trim();
-        const parts = token.split(':');
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+        transactionStarted = true;
 
-        // Do not accept raw IDs or the old unsigned GAMS-MBR format.
-        if (parts.length !== 5 || parts[0] !== 'GAMS' || parts[1] !== 'SIGN') {
-            return res.status(400).json({
-                error: 'This QR code is not a signed admission pass. Generate or download a new QR pass.'
-            });
-        }
-
-        const [, , uniqueId, timestampStr, signature] = parts;
-        if (!/^[A-Za-z0-9_-]{1,64}$/.test(uniqueId) ||
-            !/^\d{10,16}$/.test(timestampStr) ||
-            !/^[a-f0-9]{64}$/i.test(signature)) {
-            return res.status(400).json({ error: 'Malformed QR pass.' });
-        }
-
-        const secret = process.env.JWT_SECRET;
-        if (!secret) {
-            console.error('JWT_SECRET is missing; refusing to verify a QR pass.');
-            return res.status(503).json({ error: 'QR pass service is not configured.' });
-        }
-
-        // QR passes intentionally do not expire; the signature remains mandatory.
-        const expectedSignature = crypto
-            .createHmac('sha256', secret)
-            .update(`${uniqueId}:${timestampStr}`)
-            .digest();
-        const suppliedSignature = Buffer.from(signature, 'hex');
-
-        // Constant-time comparison prevents timing-based signature guessing.
-        if (suppliedSignature.length !== expectedSignature.length ||
-            !crypto.timingSafeEqual(suppliedSignature, expectedSignature)) {
-            return res.status(403).json({ error: 'Invalid QR pass signature.' });
-        }
-
-        const [members] = await db.query(
+        // Lock the member row so simultaneous scans cannot create two open visits.
+        const [members] = await connection.query(
             `SELECT id, first_name, last_name, status, image,
                     (end_date IS NOT NULL AND end_date < NOW()) AS is_expired
              FROM members
              WHERE unique_id = ? AND status != 'Deleted'
-             LIMIT 1`,
+             LIMIT 1 FOR UPDATE`,
             [uniqueId]
         );
 
         if (members.length === 0) {
+            await connection.rollback();
+            transactionStarted = false;
             return res.status(404).json({ error: 'No gym profile matches this QR pass.' });
         }
 
         const member = members[0];
         if (member.status !== 'Active' || Number(member.is_expired) === 1) {
+            await connection.rollback();
+            transactionStarted = false;
             return res.status(403).json({ error: 'This membership is not active or has expired.' });
         }
 
-        // A member cannot start another visit while an earlier visit remains open.
-        // Checkout is available from the authenticated member portal.
-        const [openVisits] = await db.query(
+        const [openVisits] = await connection.query(
             `SELECT id FROM attendance
              WHERE member_id = ? AND check_out_time IS NULL
-             ORDER BY check_in_time DESC LIMIT 1`,
+             ORDER BY check_in_time DESC LIMIT 1 FOR UPDATE`,
             [member.id]
         );
         if (openVisits.length > 0) {
+            await connection.rollback();
+            transactionStarted = false;
             return res.status(409).json({
                 error: 'This member already has an open visit. Check out before starting another visit.'
             });
         }
 
-        await db.query(
+        await connection.query(
             'INSERT INTO attendance (member_id, check_in_time, terminal, method, status) VALUES (?, NOW(), ?, ?, ?)',
             [member.id, 'Main Turnstile', 'QR Scan', 'Approved']
         );
 
-        // Activity logging is secondary; a logging failure must not report a failed check-in
-        // after attendance has already been recorded.
+        await connection.commit();
+        transactionStarted = false;
+
+        // Activity logging is secondary; a logging failure must not mark a successful check-in as failed.
         try {
             await logActivity(`${member.first_name} ${member.last_name} checked in via QR Scanner`, 'check-in', member.image);
         } catch (logError) {
@@ -557,11 +570,18 @@ export const processQRCheckIn = async (req, res) => {
             memberName: `${member.first_name} ${member.last_name}`.trim()
         });
     } catch (error) {
+        if (connection && transactionStarted) {
+            try { await connection.rollback(); } catch (rollbackError) {
+                console.error('QR check-in rollback failed:', rollbackError);
+            }
+        }
         if (error.code === 'ER_NO_SUCH_TABLE') {
             return res.status(503).json({ error: 'Attendance storage is not configured.' });
         }
         console.error('QR check-in processing fault:', error);
         return res.status(500).json({ error: 'System failed to process the QR pass.' });
+    } finally {
+        connection?.release();
     }
 };
 
