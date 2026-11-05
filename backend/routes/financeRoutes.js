@@ -1,6 +1,6 @@
 import express from 'express';
 import { getStats, getPayments, recordPayment, updatePaymentStatus, deletePayment, getRevenueReport } from '../controllers/financeController.js';
-import { verifyAdminToken } from '../middleware/authMiddleware.js';
+import { verifyAdminToken, requireTrustedClientHeader } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -9,9 +9,9 @@ router.use(verifyAdminToken);
 
 router.get('/stats', getStats);
 router.get('/payments', getPayments);
-router.post('/payments', recordPayment);
-router.put('/payments/:id', updatePaymentStatus);
-router.delete('/payments/:id', deletePayment);
+router.post('/payments', requireTrustedClientHeader, recordPayment);
+router.put('/payments/:id', requireTrustedClientHeader, updatePaymentStatus);
+router.delete('/payments/:id', requireTrustedClientHeader, deletePayment);
 router.get('/reports/revenue', getRevenueReport);
 
 export default router;
