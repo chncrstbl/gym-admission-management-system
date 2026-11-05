@@ -54,7 +54,7 @@ app.use(cookieParser())
 
 app.set('trust proxy', 1)
 
-app.use('/api/login', globalApiLimiter)
+app.use('/api', globalApiLimiter)
 
 
 // Lightweight endpoint to verify that the deployed API service is responding.
