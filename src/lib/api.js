@@ -5,6 +5,10 @@ const api = axios.create({
         ? 'http://localhost:5000/api'
         : 'https://gym-admission-management-system.onrender.com/api',
     withCredentials: true,
+    // Custom header forces browser preflight and helps block simple-form CSRF requests.
+    headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+    },
 });
 
 api.interceptors.response.use(
