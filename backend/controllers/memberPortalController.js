@@ -385,13 +385,13 @@ export const saveMemberProfile = async (req, res) => {
 
 export const changeMemberPassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
-    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    if (typeof newPassword !== 'string' || newPassword.trim().length < 8) {
         return res.status(400).json({ success: false, message: 'New password must be at least 8 characters.' });
     }
 
     try {
         const [users] = await db.query('SELECT id, password FROM users WHERE id = ?', [req.user.userId]);
-        if (!users.length || !await bcrypt.compare(currentPassword || '', users[0].password)) {
+        if (!users.length || typeof currentPassword !== 'string' || !await bcrypt.compare(currentPassword.trim(), users[0].password)) {
             return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
         }
         const passwordHash = await bcrypt.hash(newPassword.trim(), 10);
