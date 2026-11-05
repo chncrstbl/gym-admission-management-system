@@ -317,7 +317,7 @@ export const updateMember = async (req, res) => {
     try {
         // 1. Fetch current record to verify existence and check for email changes
         const [current] = await connection.query(
-            "SELECT id, email, first_name, last_name FROM members WHERE id = ? AND status != 'Deleted'", 
+            "SELECT id, email, first_name, last_name, end_date FROM members WHERE id = ? AND status != 'Deleted'", 
             [id]
         )
 
@@ -347,8 +347,10 @@ export const updateMember = async (req, res) => {
         let price = 50
 
         if (recordPayment) {
-            const effectiveDate = new Date() 
-            const newEndDate = new Date(effectiveDate.getTime())
+            const effectiveDate = new Date()
+            const currentEndDate = current[0].end_date ? new Date(current[0].end_date) : null
+            const startsFrom = currentEndDate && currentEndDate > effectiveDate ? currentEndDate : effectiveDate
+            const newEndDate = new Date(startsFrom.getTime())
             const safeRole = typeof role === 'string' && role.trim() ? role.trim() : 'Daily'
             const plans = {
                 'Daily': { price: 50, days: 1 },
