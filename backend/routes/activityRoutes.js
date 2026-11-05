@@ -1,5 +1,5 @@
 import express from 'express';
-import { getActivity, checkInMember } from '../controllers/activityController.js';
+import { getActivity } from '../controllers/activityController.js';
 import { verifyAdminToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -8,6 +8,5 @@ const router = express.Router();
 router.use(verifyAdminToken);
 
 router.get('/activity', getActivity);
-router.post('/checkin', checkInMember);
 
 export default router;
