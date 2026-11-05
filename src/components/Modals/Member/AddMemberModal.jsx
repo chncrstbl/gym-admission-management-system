@@ -1,13 +1,12 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { X, Loader, ArrowRight, Check, ArrowLeft, User, CreditCard, Phone, MapPin, Upload, Mail, HeartPulse, Lock, Eye, EyeOff } from 'lucide-react';
-import usePaymentPortal from '../../../hooks/PaymentPortal';
 import toast from 'react-hot-toast';
 
 const PRICING = {
     'Daily': 50,     
-    'Half Month': 250,  
-    'Monthly': 500,
+    'Half Month': 500,  
+    'Monthly': 1000,
 };
 
 const compressImage = (file, maxWidth = 400, quality = 0.7) => {
@@ -38,7 +37,6 @@ const compressImage = (file, maxWidth = 400, quality = 0.7) => {
 
 const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
     const [step, setStep] = useState(1);
-    const openPortal = usePaymentPortal();
     const [isProcessing, setIsProcessing] = useState(false);
     const [imagePreview, setImagePreview] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +44,7 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', dob: '', gender: '', email: '', password: '',
         contactNumber: '', address: '', emergencyContactName: '', emergencyContactPhone: '',
-        role: 'Standard', image: '', paymentMethod: 'Cash'
+        role: 'Daily', image: '', paymentMethod: 'Cash'
     });
 
     useEffect(() => {
@@ -60,7 +58,7 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
             setFormData({ 
                 firstName: '', lastName: '', dob: '', gender: '', email: '', password: '',
                 contactNumber: '', address: '', emergencyContactName: '', emergencyContactPhone: '',
-                role: 'Standard', image: '', paymentMethod: 'Cash' 
+                role: 'Daily', image: '', paymentMethod: 'Cash' 
             });
         }
         return () => { document.body.style.overflow = 'unset'; };
@@ -89,8 +87,8 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
             toast.error("Please fill in required fields.");
             return;
         }
-        if (formData.password.trim().length < 6) {
-            toast.error("Password must be at least 6 characters.");
+        if (formData.password.trim().length < 8) {
+            toast.error("Password must be at least 8 characters.");
             return;
         }
         setStep(2);
@@ -100,10 +98,12 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
         e.preventDefault();
         setIsProcessing(true); 
         try {
-            await openPortal(formData.paymentMethod);
+            // This admin-only form records a payment as received; confirm only after
+            // the cash or external transfer has actually been verified.
             await onSubmit(formData);
         } catch (error) {
             console.error(error);
+            toast.error(error.response?.data?.error || 'Member registration failed.');
         } finally {
             setIsProcessing(false);
         }
@@ -298,7 +298,7 @@ const AddMemberModal = ({ isOpen, onClose, onSubmit, isSaving }) => {
 
                             <div className="flex gap-3 bg-blue-50 text-blue-800 p-4 rounded-xl text-sm border border-blue-100">
                                 <CreditCard size={20} className="shrink-0 text-blue-600 mt-0.5" />
-                                <p>Upon confirmation, the new member status will activate immediately and a system invoice will be logged.</p>
+                                <p>Confirm only after the payment has been received or verified outside the system. Saving this admin record activates the membership and logs the invoice.</p>
                             </div>
                         </div>
                     )}
