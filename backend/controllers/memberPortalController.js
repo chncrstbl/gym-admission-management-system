@@ -121,6 +121,53 @@ export const getMemberVisits = async (req, res) => {
     }
 };
 
+
+export const checkOutMemberVisit = async (req, res) => {
+    let connection;
+    try {
+        // Member identity comes from the verified JWT; clients cannot check out another member.
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        const [openVisits] = await connection.query(
+            `SELECT id FROM attendance
+             WHERE member_id = ? AND check_out_time IS NULL
+             ORDER BY check_in_time DESC
+             FOR UPDATE`,
+            [req.user.id]
+        );
+
+        if (openVisits.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'There is no open visit to check out.' });
+        }
+
+        // Close any legacy duplicate open records for this account as well as the latest session.
+        await connection.query(
+            'UPDATE attendance SET check_out_time = NOW() WHERE member_id = ? AND check_out_time IS NULL',
+            [req.user.id]
+        );
+        await connection.commit();
+
+        return res.json({
+            success: true,
+            data: {
+                visitId: openVisits[0].id,
+                checkOutTime: new Date().toISOString()
+            }
+        });
+    } catch (err) {
+        if (connection) await connection.rollback();
+        if (err.code === 'ER_NO_SUCH_TABLE') {
+            return res.status(503).json({ success: false, message: 'Attendance storage is not configured.' });
+        }
+        console.error('Member check-out error:', err);
+        return res.status(500).json({ success: false, message: 'Could not check out of the gym.' });
+    } finally {
+        connection?.release();
+    }
+};
+
 export const getMemberProgress = async (req, res) => {
     try {
         let measurements = [];
