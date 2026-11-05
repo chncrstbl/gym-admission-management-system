@@ -4,13 +4,11 @@ import { verifyAdminToken, requireTrustedClientHeader } from '../middleware/auth
 
 const router = express.Router();
 
-// These routes mutate or disclose operational data and must never be public.
-router.use(verifyAdminToken);
-
-// Since index.js mounts this at '/api', we define the '/equipment' path here
-router.get('/equipment', getEquipment);
-router.post('/equipment', requireTrustedClientHeader, addEquipment);
-router.put('/equipment/:id', requireTrustedClientHeader, updateEquipment);
-router.delete('/equipment/:id', requireTrustedClientHeader, deleteEquipment);
+// Scope authorization to equipment routes. This router shares the /api mount
+// with public login routes and member portal routes.
+router.get('/equipment', verifyAdminToken, getEquipment);
+router.post('/equipment', verifyAdminToken, requireTrustedClientHeader, addEquipment);
+router.put('/equipment/:id', verifyAdminToken, requireTrustedClientHeader, updateEquipment);
+router.delete('/equipment/:id', verifyAdminToken, requireTrustedClientHeader, deleteEquipment);
 
 export default router;
