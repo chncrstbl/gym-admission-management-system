@@ -23,7 +23,7 @@ export const login = async (req, res) => {
 
         // 1. Fetch user credentials (using * prevents SQL crash if role column is pending migration)
         const [users] = await db.query(
-            'SELECT * FROM users WHERE email = ?', 
+            'SELECT * FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
             [cleanEmail]
         )
 
@@ -34,7 +34,13 @@ export const login = async (req, res) => {
         const user = users[0]
 
         // 2. Verify password with bcrypt
-        const isMatch = await bcrypt.compare(password.trim(), user.password)
+        // Preserve legacy passwords that were hashed without trimming, while still
+        // supporting accounts created during the version that trimmed password input.
+        const isExactMatch = await bcrypt.compare(password, user.password)
+        const isTrimmedMatch = !isExactMatch && password !== password.trim()
+            ? await bcrypt.compare(password.trim(), user.password)
+            : false
+        const isMatch = isExactMatch || isTrimmedMatch
         if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid email or password.' })
         }
@@ -43,7 +49,7 @@ export const login = async (req, res) => {
         // Existing non-deleted members may log in to review or renew an expired plan.
         // QR issuance and the check-in handler independently enforce active, unexpired membership.
         const [members] = await db.query(
-            "SELECT * FROM members WHERE email = ? AND status != 'Deleted' LIMIT 1",
+            "SELECT * FROM members WHERE LOWER(TRIM(email)) = ? AND status != 'Deleted' LIMIT 1",
             [cleanEmail]
         )
 
