@@ -394,7 +394,7 @@ export const changeMemberPassword = async (req, res) => {
         if (!users.length || !await bcrypt.compare(currentPassword || '', users[0].password)) {
             return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
         }
-        const passwordHash = await bcrypt.hash(newPassword, 10);
+        const passwordHash = await bcrypt.hash(newPassword.trim(), 10);
         await db.query('UPDATE users SET password = ? WHERE id = ?', [passwordHash, req.user.userId]);
         res.json({ success: true });
     } catch (err) {
