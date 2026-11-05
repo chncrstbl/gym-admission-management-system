@@ -8,6 +8,7 @@ import {
     getMemberProgress,
     getMemberSettings,
     getMemberVisits,
+    checkOutMemberVisit,
     renewMemberPlan,
     saveMemberProfile,
     saveMemberGoal,
@@ -26,6 +27,7 @@ router.use('/portal', verifyToken);
 router.get('/portal/payments', getMemberPayments);
 router.post('/portal/membership/renew', renewMemberPlan);
 router.get('/portal/visits', getMemberVisits);
+router.post('/portal/visits/check-out', checkOutMemberVisit);
 router.get('/portal/progress', getMemberProgress);
 router.post('/portal/progress/measurements', addMemberMeasurement);
 router.put('/portal/progress/goals', saveMemberGoal);
