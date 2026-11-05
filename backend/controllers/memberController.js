@@ -33,7 +33,7 @@ export const getMembers = async (req, res) => {
 
         const search = (req.query.search || '').trim()
 
-        let query = "SELECT * FROM members WHERE status != 'Deleted'"
+        let query = "SELECT id, unique_id, first_name, last_name, dob, gender, email, contact_number, address, emergency_contact_name, emergency_contact_phone, role, status, joined, end_date, image, qr_code FROM members WHERE status != 'Deleted'"
         let countQuery = "SELECT COUNT(*) as total FROM members WHERE status != 'Deleted'"
         let params = []
 
@@ -85,15 +85,33 @@ export const addMember = async (req, res) => {
     } = req.body
 
     // 1. Validation
-    if (!firstName || !lastName || !email) {
+    if ([firstName, lastName, email].some((value) => typeof value !== 'string' || !value.trim())) {
         return res.status(400).json({ error: "First name, last name, and email are required." })
     }
 
-    if (!password || password.trim().length < 6) {
-        return res.status(400).json({ error: "Password is required and must be at least 6 characters." })
+    if (typeof password !== 'string' || password.trim().length < 8) {
+        return res.status(400).json({ error: "Password is required and must be at least 8 characters." })
     }
 
     const cleanEmail = email.trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+        return res.status(400).json({ error: "Enter a valid email address." })
+    }
+
+    // Normalize legacy PayMaya labels and reject unknown payment methods.
+    const methodAliases = {
+        'Cash': 'Cash',
+        'GCash': 'GCash',
+        'Maya': 'Maya',
+        'PayMaya': 'Maya',
+        'Bank Transfer': 'Bank Transfer'
+    }
+    const methodToSave = methodAliases[typeof paymentMethod === 'string' ? paymentMethod.trim() : ''] ||
+        (paymentMethod ? null : 'Cash')
+    if (!methodToSave) {
+        return res.status(400).json({ error: "Choose a valid payment method." })
+    }
+
     const fullName = `${firstName.trim()} ${lastName.trim()}`
 
     // 2. Uniqueness check across users and members
@@ -114,12 +132,16 @@ export const addMember = async (req, res) => {
         finalImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random&color=fff`
     }
 
-    const safeRole = role ? role.trim() : "Standard"
-    let price = 50 
-    let daysToAdd = 1
-
-    if (safeRole === 'Half Month') { price = 500 ; daysToAdd = 15 }
-    else if (safeRole === 'Monthly') { price = 1000 ; daysToAdd = 30 }
+    const safeRole = typeof role === 'string' && role.trim() ? role.trim() : 'Daily'
+    const plans = {
+        'Daily': { price: 50, days: 1 },
+        'Half Month': { price: 500, days: 15 },
+        'Monthly': { price: 1000, days: 30 }
+    }
+    if (!plans[safeRole]) {
+        return res.status(400).json({ error: "Choose a valid membership plan." })
+    }
+    const { price, days: daysToAdd } = plans[safeRole]
 
     const joined = new Date()
     const endDate = new Date(joined)
@@ -137,7 +159,7 @@ export const addMember = async (req, res) => {
         const refNo = `INV-${Math.floor(100000 + Math.random() * 900000)}`
         const joinedSQL = getLocalMySQLDate(joined)
         const endSQL = getLocalMySQLDate(endDate)
-        const memberUniqueID = Math.floor(10000 + Math.random() * 90000).toString()
+        const memberUniqueID = crypto.randomBytes(6).toString('hex').toUpperCase()
 
         await connection.beginTransaction()
 
@@ -175,15 +197,18 @@ export const addMember = async (req, res) => {
         const newMemberId = result.insertId;
         
         // 6. Payment insertion
-        const methodToSave = paymentMethod || 'Cash' 
         await connection.query(
             "INSERT INTO payments (member_id, amount, payment_method, payment_date, status, ref_no) VALUES (?, ?, ?, NOW(), 'Completed', ?)",
             [newMemberId, price, methodToSave, refNo] 
         )
         await connection.commit()
-        
-        await logActivity(`${fullName} joined via ${methodToSave} (Ref: ${refNo})`, 'add', finalImage) 
-        
+
+        try {
+            await logActivity(`${fullName} joined via ${methodToSave} (Ref: ${refNo})`, 'add', finalImage)
+        } catch (logError) {
+            console.error('Member was created but activity logging failed:', logError)
+        }
+
         return res.status(201).json({
             id: newMemberId, 
             unique_id: memberUniqueID, 
@@ -193,8 +218,8 @@ export const addMember = async (req, res) => {
     } catch (err) {
         await connection.rollback()
 
-        if (err.code === 'ER_DUP_ENTRY' && !err.sqlMessage?.includes(cleanEmail)) {
-            return addMember(req, res) 
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ error: "A conflicting member or account record already exists." })
         }
 
         console.error("DATABASE ERROR in addMember:", err) 
@@ -252,7 +277,11 @@ export const deleteMember = async (req, res) => {
 
         await connection.commit()
 
-        await logActivity(`${member.first_name} ${member.last_name} was removed (Archived)`, 'delete', member.image)
+        try {
+            await logActivity(`${member.first_name} ${member.last_name} was removed (Archived)`, 'delete', member.image)
+        } catch (logError) {
+            console.error('Member was archived but activity logging failed:', logError)
+        }
         return res.json({ message: "Member deleted successfully" })
 
     } catch (err) {
@@ -288,7 +317,7 @@ export const updateMember = async (req, res) => {
     try {
         // 1. Fetch current record to verify existence and check for email changes
         const [current] = await connection.query(
-            "SELECT id, email, first_name, last_name FROM members WHERE id = ? AND status != 'Deleted'", 
+            "SELECT id, email, first_name, last_name, end_date FROM members WHERE id = ? AND status != 'Deleted'", 
             [id]
         )
 
@@ -318,13 +347,23 @@ export const updateMember = async (req, res) => {
         let price = 50
 
         if (recordPayment) {
-            const effectiveDate = new Date() 
-            const newEndDate = new Date(effectiveDate.getTime())
-            const safeRole = role ? role.trim() : "Daily"
-
-            if (safeRole === 'Half Month') { newEndDate.setDate(newEndDate.getDate() + 15) ; price = 300 } 
-            else if (safeRole === 'Monthly') { newEndDate.setMonth(newEndDate.getMonth() + 1) ; price = 500 } 
-            else { newEndDate.setDate(newEndDate.getDate() + 1) }
+            const effectiveDate = new Date()
+            const currentEndDate = current[0].end_date ? new Date(current[0].end_date) : null
+            const startsFrom = currentEndDate && currentEndDate > effectiveDate ? currentEndDate : effectiveDate
+            const newEndDate = new Date(startsFrom.getTime())
+            const safeRole = typeof role === 'string' && role.trim() ? role.trim() : 'Daily'
+            const plans = {
+                'Daily': { price: 50, days: 1 },
+                'Half Month': { price: 500, days: 15 },
+                'Monthly': { price: 1000, days: 30 }
+            }
+            const plan = plans[safeRole]
+            if (!plan) {
+                await connection.rollback()
+                return res.status(400).json({ error: "Choose a valid membership plan." })
+            }
+            price = plan.price
+            newEndDate.setDate(newEndDate.getDate() + plan.days)
 
             const endSQL = getLocalMySQLDate(newEndDate)
 
@@ -351,10 +390,14 @@ export const updateMember = async (req, res) => {
 
         await connection.commit()
 
-        if (recordPayment) {
-            await logActivity(`Renewed ${firstName} ${lastName}'s plan (${role || 'Daily'}) - Paid ₱${price || 50}`, 'payment', image)
-        } else {
-            await logActivity(`Updated details for ${firstName} ${lastName}`, 'edit', image)
+        try {
+            if (recordPayment) {
+                await logActivity(`Renewed ${firstName} ${lastName}'s plan (${role || 'Daily'}) - Paid ₱${price || 50}`, 'payment', image)
+            } else {
+                await logActivity(`Updated details for ${firstName} ${lastName}`, 'edit', image)
+            }
+        } catch (logError) {
+            console.error('Member was updated but activity logging failed:', logError)
         }
 
         return res.json({ message: "Member updated successfully" })
@@ -368,72 +411,179 @@ export const updateMember = async (req, res) => {
     }
 }
 
-// ROUTE 6: PROCESS GLOBAL QR SCANNER CHECK-IN
-export const processQRCheckIn = async (req, res) => {
-    const qrData = req.body.qrData || req.body.qr_code || req.body.code || req.body.text;
-
-    if (!qrData) {
-        return res.status(400).json({ error: "No QR scan data received." })
-    }
-
+// Create a signed, permanent QR pass for a specific member. This route is admin-only.
+export const getMemberQRPass = async (req, res) => {
     try {
-
-        let uniqueId = null
-
-        if(qrData.startsWith('GAMS:SIGN:')) {
-            const parts = qrData.split(':')
-            if (parts.length === 5) {
-                const [ , , extractedId, timestampStr, signature] = parts
-                const secret = process.env.JWT_SECRET || 'gams-qr-signing-key'
-                const expectedSignature = crypto
-                    .createHmac('sha256', secret)
-                    .update(`${extractedId}:${timestampStr}`)
-                    .digest('hex')
-
-                if (signature !== expectedSignature) {
-                    return res.status(403).json({ error: "Invalid QR Pass signature." })
-                }
-
-                uniqueId = extractedId
+        const memberId = String(req.params.id || '');
+        if (!/^\d+$/.test(memberId)) {
+            return res.status(400).json({ success: false, message: 'Invalid member ID.' });
         }
+
+        const [rows] = await db.query(
+            `SELECT id, unique_id, first_name, last_name, status,
+                    (end_date IS NOT NULL AND end_date < NOW()) AS is_expired
+             FROM members
+             WHERE id = ? AND status != 'Deleted'
+             LIMIT 1`,
+            [memberId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Member not found.' });
+        }
+
+        const member = rows[0];
+        if (member.status !== 'Active' || Number(member.is_expired) === 1) {
+            return res.status(403).json({ success: false, message: 'Only active members can receive an admission QR pass.' });
+        }
+
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            return res.status(503).json({ success: false, message: 'QR pass service is not configured.' });
+        }
+
+        // The signed pass has no time expiry by design, but cannot be forged by changing the member ID.
+        const timestamp = Date.now();
+        const signature = crypto
+            .createHmac('sha256', secret)
+            .update(`${member.unique_id}:${timestamp}`)
+            .digest('hex');
+        const token = `GAMS:SIGN:${member.unique_id}:${timestamp}:${signature}`;
+
+        return res.json({
+            success: true,
+            token,
+            status: member.status,
+            memberName: `${member.first_name} ${member.last_name}`.trim()
+        });
+    } catch (error) {
+        console.error('Failed generating member QR pass:', error);
+        return res.status(500).json({ success: false, message: 'Could not generate the member QR pass.' });
     }
-    else if (qrData.startsWith('GAMS-MBR-')) {
-        uniqueId = qrData.replace('GAMS-MBR-', '')
-    } else {
-        uniqueId = qrData.trim()
+};
+
+// PROCESS GLOBAL QR SCANNER CHECK-IN
+export const processQRCheckIn = async (req, res) => {
+    const qrData = req.body?.qrData ?? req.body?.qr_code ?? req.body?.code ?? req.body?.text;
+
+    if (typeof qrData !== 'string' || !qrData.trim() || qrData.length > 512) {
+        return res.status(400).json({ error: 'A valid signed QR pass is required.' });
     }
 
-    if(!uniqueId) {
-        return res.status(400).json({ error: "Malformed QR token payload." })
+    const token = qrData.trim();
+    const parts = token.split(':');
+
+    // Only signed admission passes are accepted. Raw IDs and legacy unsigned QR codes are rejected.
+    if (parts.length !== 5 || parts[0] !== 'GAMS' || parts[1] !== 'SIGN') {
+        return res.status(400).json({
+            error: 'This QR code is not a signed admission pass. Generate or download a new QR pass.'
+        });
     }
 
-    const [members] = await db.query(
-        "SELECT id, first_name, last_name, status, image FROM members WHERE unique_id = ? AND status != 'Deleted'", 
-        [uniqueId]
-    )
-
-    if (members.length === 0) {
-        return res.status(404).json({ error: "No active gym profile matches this entry card."})
+    const [, , uniqueId, timestampStr, signature] = parts;
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(uniqueId) ||
+        !/^\d{10,16}$/.test(timestampStr) ||
+        !/^[a-f0-9]{64}$/i.test(signature)) {
+        return res.status(400).json({ error: 'Malformed QR pass.' });
     }
 
-    const member = members[0]
-    if (member.status === 'Inactive') {
-        return res.status(403).json({ error: `${member.first_name}'s membership is expired.`})
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        console.error('JWT_SECRET is missing; refusing to verify a QR pass.');
+        return res.status(503).json({ error: 'QR pass service is not configured.' });
     }
 
-    await db.query(
-        "INSERT INTO attendance (member_id, check_in_time, terminal, method, status) VALUES (?, NOW(), ?, ?, ?)",
-        [member.id, 'Main Turnstile', 'QR Scan', 'Approved']
-    )
+    // QR passes intentionally do not expire; valid HMAC verification is always required.
+    const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(`${uniqueId}:${timestampStr}`)
+        .digest();
+    const suppliedSignature = Buffer.from(signature, 'hex');
 
-    await logActivity(`${member.first_name} ${member.last_name} checked in via QR Scanner`, 'check-in', member.image)
-    return res.status(200).json({ success: true, memberName: `${member.first_name} ${member.last_name}`})
-    
-} catch (error) {
-        console.error("QR Check-In Processing Fault:", error);
-        return res.status(500).json({ error: "System failed checking in client credentials." });
+    // Constant-time comparison avoids timing-based signature guessing.
+    if (suppliedSignature.length !== expectedSignature.length ||
+        !crypto.timingSafeEqual(suppliedSignature, expectedSignature)) {
+        return res.status(403).json({ error: 'Invalid QR pass signature.' });
     }
-}
+
+    let connection;
+    let transactionStarted = false;
+    try {
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+        transactionStarted = true;
+
+        // Lock the member row so simultaneous scans cannot create two open visits.
+        const [members] = await connection.query(
+            `SELECT id, first_name, last_name, status, image,
+                    (end_date IS NOT NULL AND end_date < NOW()) AS is_expired
+             FROM members
+             WHERE unique_id = ? AND status != 'Deleted'
+             LIMIT 1 FOR UPDATE`,
+            [uniqueId]
+        );
+
+        if (members.length === 0) {
+            await connection.rollback();
+            transactionStarted = false;
+            return res.status(404).json({ error: 'No gym profile matches this QR pass.' });
+        }
+
+        const member = members[0];
+        if (member.status !== 'Active' || Number(member.is_expired) === 1) {
+            await connection.rollback();
+            transactionStarted = false;
+            return res.status(403).json({ error: 'This membership is not active or has expired.' });
+        }
+
+        const [openVisits] = await connection.query(
+            `SELECT id FROM attendance
+             WHERE member_id = ? AND check_out_time IS NULL
+             ORDER BY check_in_time DESC LIMIT 1 FOR UPDATE`,
+            [member.id]
+        );
+        if (openVisits.length > 0) {
+            await connection.rollback();
+            transactionStarted = false;
+            return res.status(409).json({
+                error: 'This member already has an open visit. Check out before starting another visit.'
+            });
+        }
+
+        await connection.query(
+            'INSERT INTO attendance (member_id, check_in_time, terminal, method, status) VALUES (?, NOW(), ?, ?, ?)',
+            [member.id, 'Main Turnstile', 'QR Scan', 'Approved']
+        );
+
+        await connection.commit();
+        transactionStarted = false;
+
+        // Activity logging is secondary; a logging failure must not mark a successful check-in as failed.
+        try {
+            await logActivity(`${member.first_name} ${member.last_name} checked in via QR Scanner`, 'check-in', member.image);
+        } catch (logError) {
+            console.error('Failed to record QR check-in activity:', logError);
+        }
+
+        return res.status(200).json({
+            success: true,
+            memberName: `${member.first_name} ${member.last_name}`.trim()
+        });
+    } catch (error) {
+        if (connection && transactionStarted) {
+            try { await connection.rollback(); } catch (rollbackError) {
+                console.error('QR check-in rollback failed:', rollbackError);
+            }
+        }
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            return res.status(503).json({ error: 'Attendance storage is not configured.' });
+        }
+        console.error('QR check-in processing fault:', error);
+        return res.status(500).json({ error: 'System failed to process the QR pass.' });
+    } finally {
+        connection?.release();
+    }
+};
 
 // ROUTE 7: ANALYTICS (Charts)
 export const getAnalytics = async (req, res) => {

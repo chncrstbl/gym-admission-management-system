@@ -15,6 +15,7 @@ import memberPortalRoutes from './routes/memberPortalRoutes.js'
 import equipmentRoutes from './routes/equipmentRoutes.js'
 import announcementRoutes from './routes/announcementRoutes.js'
 import { getAnalytics, getMemberStats } from './controllers/memberController.js'
+import { verifyAdminToken } from './middleware/authMiddleware.js'
 
 dotenv.config()
 
@@ -37,7 +38,7 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     optionsSuccessStatus: 204
 }
 
@@ -53,7 +54,7 @@ app.use(cookieParser())
 
 app.set('trust proxy', 1)
 
-app.use('/api/login', globalApiLimiter)
+app.use('/api', globalApiLimiter)
 
 
 // Lightweight endpoint to verify that the deployed API service is responding.
@@ -66,8 +67,8 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 app.use('/api/members', memberRoutes)
-app.use('/api/member-stats', getMemberStats)
-app.use('/api/analytics', getAnalytics)
+app.get('/api/member-stats', verifyAdminToken, getMemberStats)
+app.get('/api/analytics', verifyAdminToken, getAnalytics)
 app.use('/api', financeRoutes)
 app.use('/api', activityRoutes)
 app.use('/api', equipmentRoutes)

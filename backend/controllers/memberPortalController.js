@@ -23,9 +23,13 @@ export const getMemberPayments = async (req, res) => {
 };
 
 export const renewMemberPlan = async (req, res) => {
-    const plan = plans[req.body.planId];
+    // This app has no verified GCash/Maya integration. Create a request only;
+    // never activate a membership based on a client-side demo popup.
+    const planId = req.body?.planId;
+    const plan = plans[planId];
     const methods = { gcash: 'GCash', maya: 'Maya', cash: 'Cash' };
-    const method = methods[req.body.paymentMethod];
+    const method = methods[req.body?.paymentMethod];
+
     if (!plan || !method) {
         return res.status(400).json({ success: false, message: 'Choose a valid plan and payment method.' });
     }
@@ -34,8 +38,10 @@ export const renewMemberPlan = async (req, res) => {
     try {
         connection = await db.getConnection();
         await connection.beginTransaction();
+
         const [members] = await connection.query(
-            'SELECT first_name, last_name, image, end_date FROM members WHERE id = ? AND status != \'Deleted\' FOR UPDATE',
+            `SELECT id, first_name, last_name, image, status
+             FROM members WHERE id = ? AND status != 'Deleted' LIMIT 1 FOR UPDATE`,
             [req.user.id]
         );
         if (!members.length) {
@@ -43,32 +49,39 @@ export const renewMemberPlan = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Member not found.' });
         }
 
-        const now = new Date();
-        const priorExpiry = members[0].end_date ? new Date(members[0].end_date) : null;
-        const startsFrom = priorExpiry && priorExpiry > now ? priorExpiry : now;
-        const newExpiry = new Date(startsFrom);
-        newExpiry.setDate(newExpiry.getDate() + plan.days);
-        const reference = `INV-${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
-
-        await connection.query(
-            `UPDATE members SET role = ?, status = 'Active', end_date = ? WHERE id = ?`,
-            [plan.role, newExpiry, req.user.id]
+        // Avoid creating multiple outstanding renewal requests for one member.
+        const [pendingRequests] = await connection.query(
+            "SELECT id FROM payments WHERE member_id = ? AND status IN ('Pending', 'Overdue', 'Unsuccessful') AND ref_no LIKE 'REN-%' LIMIT 1",
+            [req.user.id]
         );
+        if (pendingRequests.length > 0) {
+            await connection.rollback();
+            return res.status(409).json({
+                success: false,
+                message: 'You already have an unresolved renewal request. Please wait for staff to verify or close it.'
+            });
+        }
+
+        const planCode = { daily: 'D', half_month: 'H', monthly: 'M' }[planId];
+        const reference = `REN-${planCode}-${randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()}`;
         const [paymentResult] = await connection.query(
             `INSERT INTO payments (member_id, amount, payment_method, payment_date, status, ref_no)
-                VALUES (?, ?, ?, NOW(), 'Completed', ?)`,
+             VALUES (?, ?, ?, NOW(), 'Pending', ?)`,
             [req.user.id, plan.amount, method, reference]
         );
+
         const memberName = [members[0].first_name, members[0].last_name].filter(Boolean).join(' ') || 'Member';
         await connection.query(
             `INSERT INTO activity_logs (description, action_type, time, image)
-                VALUES (?, 'payment', NOW(), ?)`,
-            [`${memberName} renewed ${plan.role} plan (Invoice ${reference}) via ${method}`, members[0].image || null]
+             VALUES (?, 'payment', NOW(), ?)`,
+            [`${memberName} submitted a ${plan.role} renewal request (${reference}) via ${method}`, members[0].image || null]
         );
+
         await connection.commit();
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
+            message: 'Renewal request submitted. Membership changes only after staff verifies the payment.',
             data: {
                 id: paymentResult.insertId,
                 refNo: reference,
@@ -76,14 +89,14 @@ export const renewMemberPlan = async (req, res) => {
                 plan: plan.role,
                 amount: plan.amount,
                 method,
-                status: 'Completed',
-                endDate: newExpiry
+                status: 'Pending',
+                endDate: null
             }
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error('Member plan renewal error:', err);
-        res.status(500).json({ success: false, message: 'Could not save membership renewal.' });
+        console.error('Member renewal request error:', err);
+        return res.status(500).json({ success: false, message: 'Could not submit the renewal request.' });
     } finally {
         connection?.release();
     }
@@ -118,6 +131,53 @@ export const getMemberVisits = async (req, res) => {
         }
         console.error('Fetch member visits error:', err);
         res.status(500).json({ success: false, message: 'Could not load attendance history.' });
+    }
+};
+
+
+export const checkOutMemberVisit = async (req, res) => {
+    let connection;
+    try {
+        // Member identity comes from the verified JWT; clients cannot check out another member.
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        const [openVisits] = await connection.query(
+            `SELECT id FROM attendance
+             WHERE member_id = ? AND check_out_time IS NULL
+             ORDER BY check_in_time DESC
+             FOR UPDATE`,
+            [req.user.id]
+        );
+
+        if (openVisits.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'There is no open visit to check out.' });
+        }
+
+        // Close any legacy duplicate open records for this account as well as the latest session.
+        await connection.query(
+            'UPDATE attendance SET check_out_time = NOW() WHERE member_id = ? AND check_out_time IS NULL',
+            [req.user.id]
+        );
+        await connection.commit();
+
+        return res.json({
+            success: true,
+            data: {
+                visitId: openVisits[0].id,
+                checkOutTime: new Date().toISOString()
+            }
+        });
+    } catch (err) {
+        if (connection) await connection.rollback();
+        if (err.code === 'ER_NO_SUCH_TABLE') {
+            return res.status(503).json({ success: false, message: 'Attendance storage is not configured.' });
+        }
+        console.error('Member check-out error:', err);
+        return res.status(500).json({ success: false, message: 'Could not check out of the gym.' });
+    } finally {
+        connection?.release();
     }
 };
 
@@ -325,16 +385,16 @@ export const saveMemberProfile = async (req, res) => {
 
 export const changeMemberPassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
-    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    if (typeof newPassword !== 'string' || newPassword.trim().length < 8) {
         return res.status(400).json({ success: false, message: 'New password must be at least 8 characters.' });
     }
 
     try {
         const [users] = await db.query('SELECT id, password FROM users WHERE id = ?', [req.user.userId]);
-        if (!users.length || !await bcrypt.compare(currentPassword || '', users[0].password)) {
+        if (!users.length || typeof currentPassword !== 'string' || !await bcrypt.compare(currentPassword.trim(), users[0].password)) {
             return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
         }
-        const passwordHash = await bcrypt.hash(newPassword, 10);
+        const passwordHash = await bcrypt.hash(newPassword.trim(), 10);
         await db.query('UPDATE users SET password = ? WHERE id = ?', [passwordHash, req.user.userId]);
         res.json({ success: true });
     } catch (err) {

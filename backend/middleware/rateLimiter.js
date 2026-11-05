@@ -29,3 +29,14 @@ export const globalApiLimiter = rateLimit({
         error: 'Too many requests sent to the server. Please slow down.'
     }
 });
+
+// Throttle check-in attempts separately to reduce automated scans and replay abuse.
+export const checkInLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        error: 'Too many QR check-in attempts. Please wait before scanning again.'
+    }
+});

@@ -1,9 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Mail, Phone, MapPin, Calendar, CreditCard, ShieldCheck, HeartPulse, User, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import api from '../../../lib/api';
 
 const MemberViewModal = ({ isOpen, onClose, member }) => {
     const qrRef = useRef(null);
+    const [qrValue, setQrValue] = useState('');
+    const [qrError, setQrError] = useState('');
+    const [qrLoading, setQrLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen) document.body.style.overflow = 'hidden';
@@ -11,14 +15,45 @@ const MemberViewModal = ({ isOpen, onClose, member }) => {
         return () => { document.body.style.overflow = 'unset'; };
     }, [isOpen]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchSignedPass = async () => {
+            setQrValue('');
+            setQrError('');
+            if (!isOpen || !member?.id || member.status !== 'Active') {
+                setQrLoading(false);
+                return;
+            }
+
+            setQrLoading(true);
+            try {
+                // The server issues the signature after validating this member record.
+                const response = await api.get(`/members/${encodeURIComponent(member.id)}/qr-pass`);
+                if (!cancelled && response.data?.success && response.data.token) {
+                    setQrValue(response.data.token);
+                } else if (!cancelled) {
+                    setQrError('A signed QR pass is unavailable for this member.');
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setQrError(err.response?.data?.message || 'Could not generate a signed QR pass.');
+                }
+            } finally {
+                if (!cancelled) setQrLoading(false);
+            }
+        };
+
+        fetchSignedPass();
+        return () => { cancelled = true; };
+    }, [isOpen, member?.id, member?.status]);
+
     if (!isOpen || !member) return null;
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
-
-    const qrValue = member.unique_id ? `GAMS-MBR-${member.unique_id}` : '';
 
     const handleDownloadQR = () => {
         const svg = qrRef.current?.querySelector('svg');
@@ -84,17 +119,14 @@ const MemberViewModal = ({ isOpen, onClose, member }) => {
 
                         {/* QR Code Container */}
                         <div className="bg-white p-3 rounded-xl shadow-inner flex flex-col items-center">
-                            {member.unique_id ? (
+                            {qrLoading ? (
+                                <div className="w-36 h-36 flex items-center justify-center text-xs text-slate-500">Generating secure pass…</div>
+                            ) : qrValue ? (
                                 <>
                                     <div ref={qrRef} className="p-1">
-                                        <QRCodeSVG 
-                                            value={qrValue} 
-                                            size={144} 
-                                            level="H" 
-                                            includeMargin={false} 
-                                        />
+                                        <QRCodeSVG value={qrValue} size={144} level="H" includeMargin={false} />
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={handleDownloadQR}
                                         className="mt-3 w-full py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold tracking-wide uppercase flex items-center justify-center gap-2 transition-colors cursor-pointer"
                                     >
@@ -102,8 +134,8 @@ const MemberViewModal = ({ isOpen, onClose, member }) => {
                                     </button>
                                 </>
                             ) : (
-                                <div className="w-36 h-36 flex items-center justify-center bg-gray-100 text-gray-400 text-xs text-center border border-dashed border-gray-300 rounded-lg">
-                                    No QR Generated
+                                <div className="w-36 h-36 flex items-center justify-center bg-gray-100 text-gray-400 text-xs text-center border border-dashed border-gray-300 rounded-lg p-3">
+                                    {qrError || 'A pass is available only for active memberships.'}
                                 </div>
                             )}
                         </div>
