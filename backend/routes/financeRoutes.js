@@ -4,14 +4,14 @@ import { verifyAdminToken, requireTrustedClientHeader } from '../middleware/auth
 
 const router = express.Router();
 
-// These routes mutate or disclose operational data and must never be public.
-router.use(verifyAdminToken);
-
-router.get('/stats', getStats);
-router.get('/payments', getPayments);
-router.post('/payments', requireTrustedClientHeader, recordPayment);
-router.put('/payments/:id', requireTrustedClientHeader, updatePaymentStatus);
-router.delete('/payments/:id', requireTrustedClientHeader, deletePayment);
-router.get('/reports/revenue', getRevenueReport);
+// Protect each finance endpoint individually. This router is mounted at /api,
+// so router.use(verifyAdminToken) would incorrectly intercept /login and other
+// unrelated routes registered after this router.
+router.get('/stats', verifyAdminToken, getStats);
+router.get('/payments', verifyAdminToken, getPayments);
+router.post('/payments', verifyAdminToken, requireTrustedClientHeader, recordPayment);
+router.put('/payments/:id', verifyAdminToken, requireTrustedClientHeader, updatePaymentStatus);
+router.delete('/payments/:id', verifyAdminToken, requireTrustedClientHeader, deletePayment);
+router.get('/reports/revenue', verifyAdminToken, getRevenueReport);
 
 export default router;
